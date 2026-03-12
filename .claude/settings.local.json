@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:/Users/gfp0/Desktop/financeiro-pessoal/server\" && npm install 2>&1)",
+      "Bash(cd \"C:/Users/gfp0/Desktop/financeiro-pessoal/client\" && npm install 2>&1)",
+      "Bash(cd \"C:/Users/gfp0/Desktop/financeiro-pessoal/server\" && node -e \"const {initDatabase} = require\\('./database'\\); initDatabase\\(\\); console.log\\('DB OK'\\);\" 2>&1)",
+      "Bash(cd \"C:/Users/gfp0/Desktop/financeiro-pessoal\" && npm run dev 2>&1)",
+      "Bash(netstat -ano)",
+      "Bash(xargs -I{} taskkill //PID {} //F)",
+      "Bash(start http://localhost:5175)",
+      "Bash(cd \"C:/Users/gfp0/Desktop/financeiro-pessoal/client\" && npx vite build 2>&1)",
+      "Bash(cd \"C:/Users/gfp0/Desktop/financeiro-pessoal/client\" && npx vite build 2>&1 | head -20)",
+      "Bash(cd \"C:/Users/gfp0/Desktop/financeiro-pessoal/client\" && rm -rf dist && echo \"dist removed\")"
+    ]
+  }
+}

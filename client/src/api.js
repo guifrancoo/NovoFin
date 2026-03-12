@@ -12,7 +12,7 @@ export const deleteGroup   = (gid)    => api.delete(`/expenses/group/${gid}`);
 export const getDashboard  = (month)  => api.get('/dashboard', { params: { month } });
 
 // Invoices
-export const getInvoices   = (months) => api.get('/invoices', { params: { months } });
+export const getInvoices   = () => api.get('/invoices');
 export const getInvoice    = (method, month) => api.get(`/invoices/${encodeURIComponent(method)}/${month}`);
 
 // Reports
