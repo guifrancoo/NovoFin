@@ -1,0 +1,8 @@
+node_modules/
+client/node_modules/
+server/node_modules/
+server/financeiro.db
+server/financeiro.db-wal
+server/financeiro.db-shm
+client/dist/
+.env
