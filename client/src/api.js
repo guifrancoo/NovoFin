@@ -5,6 +5,8 @@ const api = axios.create({ baseURL: '/api' });
 // Expenses
 export const getExpenses   = (params) => api.get('/expenses', { params });
 export const createExpense = (data)   => api.post('/expenses', data);
+export const updateExpense = (id, data) => api.patch(`/expenses/${id}`, data);
+export const updateGroup   = (gid, data) => api.patch(`/expenses/group/${gid}`, data);
 export const deleteExpense = (id)     => api.delete(`/expenses/${id}`);
 export const deleteGroup   = (gid)    => api.delete(`/expenses/group/${gid}`);
 
@@ -30,6 +32,12 @@ export const deletePaymentMethod= (id)    => api.delete(`/payment-methods/${id}`
 export const getCategories      = ()      => api.get('/categories');
 export const createCategory     = (data)  => api.post('/categories', data);
 export const deleteCategory     = (id)    => api.delete(`/categories/${id}`);
+
+// Subcategories
+export const getSubcategories   = (categoryId) => api.get('/subcategories', { params: { category_id: categoryId } });
+export const getAllSubcategories = ()           => api.get('/subcategories');
+export const createSubcategory  = (data)       => api.post('/subcategories', data);
+export const deleteSubcategory  = (id)         => api.delete(`/subcategories/${id}`);
 
 // Cutoff dates
 export const getCutoffDates     = (pmId)  => api.get('/cutoff-dates', { params: { payment_method_id: pmId } });

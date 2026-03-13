@@ -1,30 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import {
-  createExpense, getPaymentMethods, getCategories, fmtCurrency,
+  createExpense, getPaymentMethods, getCategories, getSubcategories, fmtCurrency,
 } from '../api';
 
 const INITIAL = {
-  purchase_date: new Date().toISOString().slice(0, 10),
-  category: '',
-  location: '',
+  purchase_date:  new Date().toISOString().slice(0, 10),
+  category:       '',
+  subcategory:    '',
+  location:       '',
   payment_method: '',
-  description: '',
-  total_amount: '',
-  installments: '1',
+  description:    '',
+  total_amount:   '',
+  installments:   '1',
 };
 
 export default function NewExpense() {
-  const [form, setForm]       = useState(INITIAL);
-  const [methods, setMethods] = useState([]);
-  const [categories, setCats] = useState([]);
-  const [success, setSuccess] = useState(null);
-  const [error, setError]     = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [form, setForm]             = useState(INITIAL);
+  const [methods, setMethods]       = useState([]);
+  const [categories, setCats]       = useState([]);
+  const [subcategories, setSubcats] = useState([]);
+  const [success, setSuccess]       = useState(null);
+  const [error, setError]           = useState(null);
+  const [loading, setLoading]       = useState(false);
 
   useEffect(() => {
     getPaymentMethods().then((r) => setMethods(r.data));
     getCategories().then((r) => setCats(r.data));
   }, []);
+
+  // Load subcategories whenever category changes
+  useEffect(() => {
+    if (!form.category) { setSubcats([]); return; }
+    const cat = categories.find((c) => c.name === form.category);
+    if (!cat) { setSubcats([]); return; }
+    getSubcategories(cat.id).then((r) => setSubcats(r.data));
+    setForm((f) => ({ ...f, subcategory: '' }));
+  }, [form.category, categories]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -46,11 +57,13 @@ export default function NewExpense() {
     try {
       const res = await createExpense({
         ...form,
+        subcategory:  form.subcategory || null,
         total_amount: parseFloat(form.total_amount),
         installments: parseInt(form.installments, 10) || 1,
       });
       setSuccess(res.data);
       setForm(INITIAL);
+      setSubcats([]);
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao salvar');
     } finally {
@@ -75,7 +88,7 @@ export default function NewExpense() {
           {success.length} parcela(s) criada(s) com sucesso!
           {success.length > 1 && (
             <span className="ml-1">
-              ({fmtCurrency(success[0].installment_amount)} / parcela)
+              ({fmtCurrency(Math.abs(success[0].installment_amount))} / parcela)
             </span>
           )}
           {success[0] && (
@@ -107,6 +120,22 @@ export default function NewExpense() {
             {categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
           </select>
         </div>
+
+        {/* Subcategory — only shown if category has subcategories */}
+        {subcategories.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Subcategoria <span className="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <select
+              value={form.subcategory} onChange={set('subcategory')}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="">— nenhuma —</option>
+              {subcategories.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+            </select>
+          </div>
+        )}
 
         {/* Location */}
         <div>

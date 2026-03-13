@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   getPaymentMethods, createPaymentMethod, deletePaymentMethod,
   getCategories, createCategory, deleteCategory,
+  getAllSubcategories, createSubcategory, deleteSubcategory,
   getCutoffDates, saveCutoffDate, deleteCutoffDate,
   MONTH_NAMES,
 } from '../api';
@@ -120,67 +121,186 @@ function PaymentMethodsSection() {
   );
 }
 
-// ─── Categories section ───────────────────────────────────────────────────────
+// ─── Categories + Subcategories section ──────────────────────────────────────
 
 function CategoriesSection() {
-  const [cats, setCats] = useState([]);
-  const [name, setName] = useState('');
-  const [err, setErr]   = useState('');
+  const [cats, setCats]       = useState([]);
+  const [allSubs, setAllSubs] = useState([]); // [{id, category_id, name, category_name}]
+  const [catName, setCatName] = useState('');
+  const [catErr, setCatErr]   = useState('');
 
-  const load = useCallback(() => getCategories().then((r) => setCats(r.data)), []);
-  useEffect(() => { load(); }, [load]);
+  // Subcategory form state
+  const [subCatId, setSubCatId] = useState('');
+  const [subName, setSubName]   = useState('');
+  const [subErr, setSubErr]     = useState('');
 
-  const add = async () => {
-    setErr('');
-    if (!name.trim()) return setErr('Digite um nome');
+  const [expandedCat, setExpandedCat] = useState(null);
+
+  const loadCats = useCallback(() => getCategories().then((r) => {
+    setCats(r.data);
+    if (!subCatId && r.data.length > 0) setSubCatId(String(r.data[0].id));
+  }), [subCatId]);
+
+  const loadSubs = useCallback(() => getAllSubcategories().then((r) => setAllSubs(r.data)), []);
+
+  useEffect(() => { loadCats(); loadSubs(); }, []);
+
+  const addCat = async () => {
+    setCatErr('');
+    if (!catName.trim()) return setCatErr('Digite um nome');
     try {
-      await createCategory({ name: name.trim() });
-      setName('');
-      load();
+      await createCategory({ name: catName.trim() });
+      setCatName('');
+      loadCats();
     } catch (e) {
-      setErr(e.response?.data?.error || 'Erro ao adicionar');
+      setCatErr(e.response?.data?.error || 'Erro ao adicionar');
     }
   };
 
-  const remove = async (id) => {
-    setErr('');
+  const removeCat = async (id) => {
+    setCatErr('');
     try {
       await deleteCategory(id);
-      load();
+      loadCats(); loadSubs();
     } catch (e) {
-      setErr(e.response?.data?.error || 'Erro ao remover');
+      setCatErr(e.response?.data?.error || 'Erro ao remover');
     }
   };
+
+  const addSub = async () => {
+    setSubErr('');
+    if (!subName.trim()) return setSubErr('Digite um nome');
+    if (!subCatId) return setSubErr('Selecione uma categoria');
+    try {
+      await createSubcategory({ category_id: Number(subCatId), name: subName.trim() });
+      setSubName('');
+      loadSubs();
+      setExpandedCat(Number(subCatId));
+    } catch (e) {
+      setSubErr(e.response?.data?.error || 'Erro ao adicionar');
+    }
+  };
+
+  const removeSub = async (id) => {
+    setSubErr('');
+    try {
+      await deleteSubcategory(id);
+      loadSubs();
+    } catch (e) {
+      setSubErr(e.response?.data?.error || 'Erro ao remover');
+    }
+  };
+
+  // Group subcategories by category_id
+  const subsByCategory = allSubs.reduce((acc, s) => {
+    if (!acc[s.category_id]) acc[s.category_id] = [];
+    acc[s.category_id].push(s);
+    return acc;
+  }, {});
 
   return (
     <SectionCard
-      title="Categorias"
-      description="Adicione ou remova categorias de gastos."
+      title="Categorias e Subcategorias"
+      description="Adicione categorias e vincule subcategorias a elas (ex: Família → Babá, Educação filha)."
     >
-      <div className="flex flex-wrap gap-2">
-        {cats.map((c) => (
-          <Tag key={c.id} label={c.name} onDelete={() => remove(c.id)} />
-        ))}
+      {/* Category list with expandable subcategories */}
+      <div className="space-y-1">
+        {cats.map((c) => {
+          const subs = subsByCategory[c.id] || [];
+          const isOpen = expandedCat === c.id;
+          return (
+            <div key={c.id} className="border rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100">
+                <button
+                  className="flex items-center gap-2 flex-1 text-left text-sm font-medium"
+                  onClick={() => setExpandedCat(isOpen ? null : c.id)}
+                >
+                  <span>{c.name}</span>
+                  {subs.length > 0 && (
+                    <span className="text-xs text-gray-400 bg-white border rounded-full px-1.5 py-0.5">
+                      {subs.length}
+                    </span>
+                  )}
+                  {subs.length > 0 && (
+                    <span className="text-gray-400 text-xs ml-auto mr-2">{isOpen ? '▲' : '▼'}</span>
+                  )}
+                </button>
+                <button
+                  onClick={() => removeCat(c.id)}
+                  title="Remover categoria"
+                  className="text-gray-400 hover:text-red-500 transition-colors text-xs ml-2"
+                >✕</button>
+              </div>
+              {isOpen && (
+                <div className="px-3 py-2 bg-white space-y-1">
+                  {subs.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between py-1 border-b last:border-0">
+                      <span className="text-sm text-gray-600">› {s.name}</span>
+                      <button
+                        onClick={() => removeSub(s.id)}
+                        className="text-gray-400 hover:text-red-500 text-xs transition-colors"
+                        title="Remover subcategoria"
+                      >✕</button>
+                    </div>
+                  ))}
+                  {subs.length === 0 && (
+                    <p className="text-xs text-gray-400 py-1">Nenhuma subcategoria</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
         {cats.length === 0 && <p className="text-sm text-gray-400">Nenhuma categoria cadastrada</p>}
       </div>
 
+      {/* Add category */}
       <div className="flex gap-2 items-center pt-2 border-t">
         <input
           type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
+          value={catName}
+          onChange={(e) => setCatName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addCat()}
           placeholder="Nova categoria..."
           className="border rounded-lg px-3 py-1.5 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
         <button
-          onClick={add}
+          onClick={addCat}
           className="bg-brand-600 hover:bg-brand-700 text-white text-sm px-4 py-1.5 rounded-lg transition-colors"
         >
-          Adicionar
+          Adicionar categoria
         </button>
       </div>
-      <ErrorBanner msg={err} />
+      <ErrorBanner msg={catErr} />
+
+      {/* Add subcategory */}
+      <div className="border-t pt-4 space-y-2">
+        <p className="text-sm font-medium text-gray-700">Adicionar subcategoria</p>
+        <div className="flex flex-wrap gap-2 items-center">
+          <select
+            value={subCatId}
+            onChange={(e) => setSubCatId(e.target.value)}
+            className="border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <input
+            type="text"
+            value={subName}
+            onChange={(e) => setSubName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addSub()}
+            placeholder="Nome da subcategoria..."
+            className="border rounded-lg px-3 py-1.5 text-sm flex-1 min-w-[160px] focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+          <button
+            onClick={addSub}
+            className="bg-brand-600 hover:bg-brand-700 text-white text-sm px-4 py-1.5 rounded-lg transition-colors"
+          >
+            Adicionar
+          </button>
+        </div>
+        <ErrorBanner msg={subErr} />
+      </div>
     </SectionCard>
   );
 }
@@ -250,7 +370,6 @@ function CutoffDatesSection() {
         </p>
       ) : (
         <>
-          {/* Card selector */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Cartão</label>
             <select
@@ -264,7 +383,6 @@ function CutoffDatesSection() {
             </select>
           </div>
 
-          {/* Add form */}
           <div className="flex flex-wrap gap-2 items-end pt-2 border-t">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Ano</label>
@@ -304,7 +422,6 @@ function CutoffDatesSection() {
           </div>
           <ErrorBanner msg={err} />
 
-          {/* Existing cutoffs table */}
           {cutoffs.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm mt-2">

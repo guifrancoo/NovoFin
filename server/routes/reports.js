@@ -3,26 +3,52 @@ const { db } = require('../database');
 
 const router = Router();
 
-// Todos os relatórios usam purchase_date (data da compra), não due_date.
-// A tela de Faturas é a única que usa due_date.
+// All reports use purchase_date. All aggregate over expenses (installment_amount < 0),
+// displaying absolute values (ABS).
 
 // GET /api/reports/by-category?start=2026-01&end=2026-03
+// Returns [{category, total, count, subcategories:[{subcategory,total,count}]}]
 router.get('/by-category', (req, res) => {
   const { start, end } = req.query;
   const startDate = start ? `${start}-01` : '2000-01-01';
   const endDate   = end   ? `${end}-31`   : '2099-12-31';
 
-  const rows = db.prepare(`
+  const catRows = db.prepare(`
     SELECT category,
-           COALESCE(SUM(installment_amount), 0) AS total,
+           ABS(COALESCE(SUM(installment_amount), 0)) AS total,
            COUNT(*) AS count
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
+      AND installment_amount < 0
     GROUP BY category
     ORDER BY total DESC
   `).all(startDate, endDate);
 
-  res.json(rows);
+  // Subcategory breakdown per category
+  const subRows = db.prepare(`
+    SELECT category, subcategory,
+           ABS(COALESCE(SUM(installment_amount), 0)) AS total,
+           COUNT(*) AS count
+    FROM expenses
+    WHERE purchase_date BETWEEN ? AND ?
+      AND installment_amount < 0
+      AND subcategory IS NOT NULL
+    GROUP BY category, subcategory
+    ORDER BY category, total DESC
+  `).all(startDate, endDate);
+
+  const subMap = {};
+  for (const r of subRows) {
+    if (!subMap[r.category]) subMap[r.category] = [];
+    subMap[r.category].push({ subcategory: r.subcategory, total: r.total, count: r.count });
+  }
+
+  const result = catRows.map((r) => ({
+    ...r,
+    subcategories: subMap[r.category] || [],
+  }));
+
+  res.json(result);
 });
 
 // GET /api/reports/by-month?start=2026-01&end=2026-06&category=Lazer
@@ -33,10 +59,11 @@ router.get('/by-month', (req, res) => {
 
   let sql = `
     SELECT strftime('%Y-%m', purchase_date) AS month,
-           COALESCE(SUM(installment_amount), 0) AS total,
+           ABS(COALESCE(SUM(installment_amount), 0)) AS total,
            COUNT(*) AS count
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
+      AND installment_amount < 0
   `;
   const params = [startDate, endDate];
 
@@ -55,10 +82,11 @@ router.get('/by-payment-method', (req, res) => {
 
   const rows = db.prepare(`
     SELECT payment_method,
-           COALESCE(SUM(installment_amount), 0) AS total,
+           ABS(COALESCE(SUM(installment_amount), 0)) AS total,
            COUNT(*) AS count
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
+      AND installment_amount < 0
     GROUP BY payment_method
     ORDER BY total DESC
   `).all(startDate, endDate);

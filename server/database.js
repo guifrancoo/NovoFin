@@ -9,7 +9,7 @@ db.exec("PRAGMA journal_mode = WAL");
 db.exec("PRAGMA foreign_keys = ON");
 
 function initDatabase() {
-  // --- Existing table ---
+  // --- Core tables ---
   db.exec(`
     CREATE TABLE IF NOT EXISTS expenses (
       id                 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,6 +17,7 @@ function initDatabase() {
       purchase_date      TEXT NOT NULL,
       due_date           TEXT NOT NULL,
       category           TEXT NOT NULL,
+      subcategory        TEXT,
       location           TEXT,
       payment_method     TEXT NOT NULL,
       description        TEXT,
@@ -34,7 +35,11 @@ function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_group_id       ON expenses(group_id);
   `);
 
-  // --- New tables ---
+  // Migrate: add subcategory column if it doesn't exist yet (safe to call multiple times)
+  try { db.exec('ALTER TABLE expenses ADD COLUMN subcategory TEXT'); } catch (_) {}
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_subcategory ON expenses(subcategory)'); } catch (_) {}
+
+  // --- Supporting tables ---
   db.exec(`
     CREATE TABLE IF NOT EXISTS payment_methods (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,6 +53,16 @@ function initDatabase() {
       name       TEXT NOT NULL UNIQUE,
       created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS subcategories (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+      name        TEXT    NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+      UNIQUE(category_id, name)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_subcategories_cat ON subcategories(category_id);
 
     CREATE TABLE IF NOT EXISTS cutoff_dates (
       id                INTEGER PRIMARY KEY AUTOINCREMENT,

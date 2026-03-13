@@ -9,6 +9,7 @@ const reportsRouter        = require('./routes/reports');
 const paymentMethodsRouter = require('./routes/payment-methods');
 const categoriesRouter     = require('./routes/categories');
 const cutoffDatesRouter    = require('./routes/cutoff-dates');
+const subcategoriesRouter  = require('./routes/subcategories');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +24,7 @@ app.use('/api/reports',         reportsRouter);
 app.use('/api/payment-methods', paymentMethodsRouter);
 app.use('/api/categories',      categoriesRouter);
 app.use('/api/cutoff-dates',    cutoffDatesRouter);
+app.use('/api/subcategories',   subcategoriesRouter);
 
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
