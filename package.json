@@ -7,7 +7,7 @@
     "server": "npm --prefix server start",
     "client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
-    "start": "NODE_ENV=production npm --prefix server start",
+    "start": "NODE_ENV=production node --no-warnings=ExperimentalWarning server/index.js",
     "install:all": "npm install && npm --prefix server install && npm --prefix client install"
   },
   "devDependencies": {
