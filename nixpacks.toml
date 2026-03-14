@@ -8,4 +8,4 @@ cmds = ["cd server && npm install", "cd client && npm install"]
 cmds = ["cd client && npm run build"]
 
 [start]
-cmd = "node server/index.js"
+cmd = "node --experimental-sqlite server/index.js"

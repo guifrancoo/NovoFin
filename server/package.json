@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node --no-warnings=ExperimentalWarning index.js",
+    "start": "node --experimental-sqlite index.js",
     "dev": "nodemon --exec \"node --no-warnings=ExperimentalWarning\" index.js"
   },
   "dependencies": {
