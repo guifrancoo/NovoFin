@@ -6,3 +6,4 @@ server/financeiro.db-wal
 server/financeiro.db-shm
 client/dist/
 .env
+server/.env

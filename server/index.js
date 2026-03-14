@@ -1,7 +1,11 @@
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+
 const express = require('express');
-const cors = require('cors');
+const cors    = require('cors');
+const path    = require('path');
 const { initDatabase } = require('./database');
 
+const authRouter           = require('./routes/auth');
 const expensesRouter       = require('./routes/expenses');
 const dashboardRouter      = require('./routes/dashboard');
 const invoicesRouter       = require('./routes/invoices');
@@ -10,23 +14,39 @@ const paymentMethodsRouter = require('./routes/payment-methods');
 const categoriesRouter     = require('./routes/categories');
 const cutoffDatesRouter    = require('./routes/cutoff-dates');
 const subcategoriesRouter  = require('./routes/subcategories');
+const requireAuth          = require('./middleware/auth');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
+const PROD = process.env.NODE_ENV === 'production';
 
-app.use(cors({ origin: 'http://localhost:5173' }));
+// CORS apenas em desenvolvimento (em produção tudo vem do mesmo servidor)
+if (!PROD) {
+  app.use(cors({ origin: 'http://localhost:5173' }));
+}
+
 app.use(express.json());
 
-app.use('/api/expenses',        expensesRouter);
-app.use('/api/dashboard',       dashboardRouter);
-app.use('/api/invoices',        invoicesRouter);
-app.use('/api/reports',         reportsRouter);
-app.use('/api/payment-methods', paymentMethodsRouter);
-app.use('/api/categories',      categoriesRouter);
-app.use('/api/cutoff-dates',    cutoffDatesRouter);
-app.use('/api/subcategories',   subcategoriesRouter);
-
+// Rotas públicas
+app.use('/api/auth', authRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+// Rotas protegidas
+app.use('/api/expenses',        requireAuth, expensesRouter);
+app.use('/api/dashboard',       requireAuth, dashboardRouter);
+app.use('/api/invoices',        requireAuth, invoicesRouter);
+app.use('/api/reports',         requireAuth, reportsRouter);
+app.use('/api/payment-methods', requireAuth, paymentMethodsRouter);
+app.use('/api/categories',      requireAuth, categoriesRouter);
+app.use('/api/cutoff-dates',    requireAuth, cutoffDatesRouter);
+app.use('/api/subcategories',   requireAuth, subcategoriesRouter);
+
+// Servir frontend buildado em produção
+if (PROD) {
+  const distPath = path.join(__dirname, '..', 'client', 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
+}
 
 app.use((err, _req, res, _next) => {
   console.error(err);

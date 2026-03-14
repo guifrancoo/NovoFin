@@ -1,5 +1,6 @@
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 
 const DB_PATH = path.join(__dirname, 'financeiro.db');
 
@@ -92,6 +93,24 @@ function initDatabase() {
   ];
   const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
   for (const c of defaultCategories) insertCat.run(c);
+
+  // --- Users table ---
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      username   TEXT NOT NULL UNIQUE,
+      password   TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+    );
+  `);
+
+  // --- Seed default admin user (once) ---
+  const existingAdmin = db.prepare('SELECT 1 FROM users WHERE username = ?').get('admin');
+  if (!existingAdmin) {
+    const hash = bcrypt.hashSync('financeiro123', 10);
+    db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run('admin', hash);
+    console.log('Default admin user created (admin / financeiro123)');
+  }
 
   console.log('Database initialised at', DB_PATH);
 }

@@ -2,6 +2,30 @@ import axios from 'axios';
 
 const api = axios.create({ baseURL: '/api' });
 
+// Injeta o token em todas as requisições
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Se receber 401, limpa sessão e vai para login
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      window.location.href = '/login';
+    }
+    return Promise.reject(err);
+  }
+);
+
+// Auth
+export const login = (data) => api.post('/auth/login', data);
+export const getMe = ()     => api.get('/auth/me');
+
 // Expenses
 export const getExpenses   = (params) => api.get('/expenses', { params });
 export const createExpense = (data)   => api.post('/expenses', data);
@@ -24,14 +48,14 @@ export const getReportByPaymentMethod = (params) => api.get('/reports/by-payment
 export const getReportDetail          = (params) => api.get('/reports/detail', { params });
 
 // Payment methods
-export const getPaymentMethods  = ()      => api.get('/payment-methods');
-export const createPaymentMethod= (data)  => api.post('/payment-methods', data);
-export const deletePaymentMethod= (id)    => api.delete(`/payment-methods/${id}`);
+export const getPaymentMethods   = ()     => api.get('/payment-methods');
+export const createPaymentMethod = (data) => api.post('/payment-methods', data);
+export const deletePaymentMethod = (id)   => api.delete(`/payment-methods/${id}`);
 
 // Categories
-export const getCategories      = ()      => api.get('/categories');
-export const createCategory     = (data)  => api.post('/categories', data);
-export const deleteCategory     = (id)    => api.delete(`/categories/${id}`);
+export const getCategories   = ()     => api.get('/categories');
+export const createCategory  = (data) => api.post('/categories', data);
+export const deleteCategory  = (id)   => api.delete(`/categories/${id}`);
 
 // Subcategories
 export const getSubcategories   = (categoryId) => api.get('/subcategories', { params: { category_id: categoryId } });
@@ -40,9 +64,9 @@ export const createSubcategory  = (data)       => api.post('/subcategories', dat
 export const deleteSubcategory  = (id)         => api.delete(`/subcategories/${id}`);
 
 // Cutoff dates
-export const getCutoffDates     = (pmId)  => api.get('/cutoff-dates', { params: { payment_method_id: pmId } });
-export const saveCutoffDate     = (data)  => api.post('/cutoff-dates', data);
-export const deleteCutoffDate   = (id)    => api.delete(`/cutoff-dates/${id}`);
+export const getCutoffDates  = (pmId) => api.get('/cutoff-dates', { params: { payment_method_id: pmId } });
+export const saveCutoffDate  = (data) => api.post('/cutoff-dates', data);
+export const deleteCutoffDate = (id)  => api.delete(`/cutoff-dates/${id}`);
 
 // Formatters
 export const fmtCurrency = (v) =>
