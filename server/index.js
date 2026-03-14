@@ -41,11 +41,13 @@ app.use('/api/categories',      requireAuth, categoriesRouter);
 app.use('/api/cutoff-dates',    requireAuth, cutoffDatesRouter);
 app.use('/api/subcategories',   requireAuth, subcategoriesRouter);
 
-// Servir frontend buildado em produção
-if (PROD) {
-  const distPath = path.join(__dirname, '..', 'client', 'dist');
+// Servir frontend buildado (produção ou quando o dist existir)
+const distPath = path.join(__dirname, '..', 'client', 'dist');
+const distIndex = path.join(distPath, 'index.html');
+const fs = require('fs');
+if (PROD || fs.existsSync(distIndex)) {
   app.use(express.static(distPath));
-  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
+  app.get('*', (_req, res) => res.sendFile(distIndex));
 }
 
 app.use((err, _req, res, _next) => {
