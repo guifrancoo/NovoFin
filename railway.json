@@ -5,7 +5,7 @@
     "buildCommand": "cd server && npm install && cd ../client && npm install && npm run build"
   },
   "deploy": {
-    "startCommand": "node --experimental-sqlite server/index.js",
+    "startCommand": "node server/index.js",
     "restartPolicyType": "ON_FAILURE"
   }
 }
