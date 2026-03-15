@@ -6,6 +6,7 @@ import Invoices    from './pages/Invoices';
 import Reports     from './pages/Reports';
 import Settings    from './pages/Settings';
 import Login       from './pages/Login';
+import Profile     from './pages/Profile';
 
 const NAV = [
   { to: '/',              label: 'Dashboard' },
@@ -54,8 +55,17 @@ function Layout() {
               </NavLink>
             ))}
           </nav>
-          <div className="flex items-center gap-3 ml-auto shrink-0">
-            <span className="text-blue-200 text-sm hidden sm:block">{username}</span>
+          <div className="flex items-center gap-1 ml-auto shrink-0">
+            <NavLink
+              to="/perfil"
+              className={({ isActive }) =>
+                `text-sm font-medium px-3 py-1.5 rounded transition-colors ${
+                  isActive ? 'bg-white/20 text-white' : 'text-blue-200 hover:bg-white/10 hover:text-white'
+                }`
+              }
+            >
+              {username}
+            </NavLink>
             <button
               onClick={handleLogout}
               className="text-blue-100 hover:bg-white/10 hover:text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
@@ -73,6 +83,7 @@ function Layout() {
           <Route path="/faturas"       element={<Invoices />} />
           <Route path="/relatorios"    element={<Reports />} />
           <Route path="/configuracoes" element={<Settings />} />
+          <Route path="/perfil"       element={<Profile />} />
         </Routes>
       </main>
 
