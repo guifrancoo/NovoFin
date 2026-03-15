@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const path = require('path');
 const fs   = require('fs');
+const { reopenDatabase } = require('../database');
 
 const router = Router();
 
@@ -42,14 +43,12 @@ router.post('/restore-db', (req, res) => {
   }
 
   fs.writeFileSync(DB_PATH, buffer);
+  reopenDatabase();
 
   const sizeMB = (buffer.length / 1024 / 1024).toFixed(2);
-  console.log(`[admin] banco restaurado (${sizeMB} MB) — reiniciando processo...`);
+  console.log(`[admin] banco restaurado (${sizeMB} MB)`);
 
-  res.json({ ok: true, size_bytes: buffer.length, message: 'Banco restaurado. Reinicie o servidor para aplicar.' });
-
-  // Encerra o processo para o Railway reiniciar com o novo banco
-  setTimeout(() => process.exit(0), 300);
+  res.json({ ok: true, size_bytes: buffer.length, message: 'Banco restaurado com sucesso.' });
 });
 
 // POST /api/admin/reset-password

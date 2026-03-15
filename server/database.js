@@ -10,10 +10,27 @@ const DB_PATH = process.env.NODE_ENV === 'production'
 // Garante que o diretório existe (necessário no Railway na primeira execução)
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-const db = new Database(DB_PATH);
+let _db = new Database(DB_PATH);
+_db.exec("PRAGMA journal_mode = WAL");
+_db.exec("PRAGMA foreign_keys = ON");
 
-db.exec("PRAGMA journal_mode = WAL");
-db.exec("PRAGMA foreign_keys = ON");
+// Proxy que sempre delega para a instância atual de _db.
+// Permite que as rotas mantenham uma referência a `db` mesmo após
+// um reopenDatabase(), sem precisar alterar nenhum arquivo de rota.
+const db = new Proxy({}, {
+  get(_, prop) {
+    const val = _db[prop];
+    return typeof val === 'function' ? val.bind(_db) : val;
+  },
+});
+
+function reopenDatabase() {
+  try { _db.close(); } catch (_) {}
+  _db = new Database(DB_PATH);
+  _db.exec("PRAGMA journal_mode = WAL");
+  _db.exec("PRAGMA foreign_keys = ON");
+  console.log('[db] conexão reaberta com o novo banco em', DB_PATH);
+}
 
 function initDatabase() {
   // --- Core tables ---
@@ -130,4 +147,4 @@ function initDatabase() {
   console.log('Database initialised at', DB_PATH);
 }
 
-module.exports = { db, initDatabase };
+module.exports = { db, initDatabase, reopenDatabase };
