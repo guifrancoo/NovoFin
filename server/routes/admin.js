@@ -154,6 +154,68 @@ router.get('/delete-db', (req, res) => {
   }
 });
 
+// POST /api/admin/import-json
+// Header obrigatório: x-admin-key: <ADMIN_KEY do .env>
+// Body: objeto JSON com arrays por tabela (gerado por export-data.js)
+router.post('/import-json', (req, res) => {
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey)
+    return res.status(500).json({ error: 'ADMIN_KEY não configurada no servidor' });
+
+  if (req.headers['x-admin-key'] !== adminKey)
+    return res.status(401).json({ error: 'Chave de admin inválida' });
+
+  const payload = req.body;
+  if (!payload || typeof payload !== 'object')
+    return res.status(400).json({ error: 'Body JSON inválido' });
+
+  const { db } = require('../database');
+
+  // Ordem respeita dependências de FK: primeiro pais, depois filhos
+  const tables = ['expenses', 'cutoff_dates', 'subcategories', 'categories', 'payment_methods', 'users'];
+
+  try {
+    db.exec('PRAGMA foreign_keys = OFF');
+
+    // Limpa todas as tabelas na ordem inversa de dependência
+    for (const table of tables) {
+      db.exec(`DELETE FROM ${table}`);
+    }
+
+    const counts = {};
+
+    // Reimporta na ordem correta (pais antes de filhos)
+    const insertOrder = ['categories', 'payment_methods', 'subcategories', 'cutoff_dates', 'expenses', 'users'];
+    for (const table of insertOrder) {
+      const rows = payload[table];
+      if (!Array.isArray(rows) || rows.length === 0) {
+        counts[table] = 0;
+        continue;
+      }
+
+      const cols   = Object.keys(rows[0]);
+      const params = cols.map(() => '?').join(', ');
+      const stmt   = db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${params})`);
+
+      const insertMany = db.transaction((rowList) => {
+        for (const row of rowList) stmt.run(...cols.map(c => row[c]));
+      });
+      insertMany(rows);
+
+      counts[table] = rows.length;
+      console.log(`[admin] import-json: ${table} — ${rows.length} registros`);
+    }
+
+    db.exec('PRAGMA foreign_keys = ON');
+
+    res.json({ ok: true, counts });
+  } catch (err) {
+    db.exec('PRAGMA foreign_keys = ON');
+    console.error('[admin] erro no import-json:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/admin/reset-password
 // Body: { username, new_password }
 router.post('/reset-password', (req, res) => {
