@@ -10,7 +10,7 @@ import Profile     from './pages/Profile';
 
 const NAV = [
   { to: '/',              label: 'Dashboard' },
-  { to: '/novo',          label: 'Novo Gasto' },
+  { to: '/novo',          label: 'Lançamentos' },
   { to: '/faturas',       label: 'Faturas' },
   { to: '/relatorios',    label: 'Relatórios' },
   { to: '/configuracoes', label: 'Configurações' },
