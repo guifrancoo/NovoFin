@@ -59,7 +59,7 @@ router.get('/:id', (req, res) => {
   res.json(row);
 });
 
-// POST /api/expenses — amounts are stored as negative (expense convention)
+// POST /api/expenses — despesas armazenadas como negativo, receitas como positivo
 router.post('/', (req, res) => {
   const {
     purchase_date,
@@ -70,6 +70,7 @@ router.post('/', (req, res) => {
     description,
     total_amount,
     installments = 1,
+    type = 'despesa', // 'despesa' | 'receita'
   } = req.body;
 
   if (!purchase_date || !category || !payment_method || total_amount == null) {
@@ -84,9 +85,13 @@ router.post('/', (req, res) => {
 
   if (Number(total_amount) === 0) return res.status(400).json({ error: 'total_amount cannot be zero' });
 
-  // Expenses entered from the form are positive; store as negative
-  const finalAmount = -Math.abs(parseFloat(total_amount));
-  const numInstallments   = Math.max(1, parseInt(installments, 10) || 1);
+  // Receitas são positivas; despesas são negativas
+  const isIncome = type === 'receita';
+  const finalAmount = isIncome
+    ? Math.abs(parseFloat(total_amount))
+    : -Math.abs(parseFloat(total_amount));
+  // Receitas não têm parcelas
+  const numInstallments = isIncome ? 1 : Math.max(1, parseInt(installments, 10) || 1);
   const installmentAmount = parseFloat((finalAmount / numInstallments).toFixed(2));
   const group_id          = randomUUID();
   const firstDueDate      = computeFirstDueDate(purchase_date, payment_method);

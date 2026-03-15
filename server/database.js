@@ -140,6 +140,9 @@ function initDatabase() {
   // Migrate: add exclude_from_reports to categories for existing DBs (safe, try/catch)
   try { db.exec('ALTER TABLE categories ADD COLUMN exclude_from_reports INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
 
+  // Migrate: add is_income to categories for existing DBs (safe, try/catch)
+  try { db.exec('ALTER TABLE categories ADD COLUMN is_income INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
+
   // --- Seed default payment methods (once) ---
   const defaultMethods = [
     { name: 'TAM',         is_card: 1 },
@@ -163,6 +166,12 @@ function initDatabase() {
   db.prepare("INSERT OR IGNORE INTO categories (name, exclude_from_reports) VALUES ('Pagamentos Cartões', 1)").run();
   // Mark any existing variation (case-insensitive LIKE) — catches "Pagamentos CartõEs" etc.
   db.prepare("UPDATE categories SET exclude_from_reports = 1 WHERE LOWER(name) LIKE '%pagamentos cart%'").run();
+
+  // Seed income categories
+  db.prepare("INSERT OR IGNORE INTO categories (name, is_income) VALUES ('Salário', 1)").run();
+  db.prepare("INSERT OR IGNORE INTO categories (name, is_income) VALUES ('Outras Rendas', 1)").run();
+  // Ensure existing rows have the flag set (idempotent)
+  db.prepare("UPDATE categories SET is_income = 1 WHERE name IN ('Salário', 'Outras Rendas')").run();
 
   // --- Users table ---
   db.exec(`
