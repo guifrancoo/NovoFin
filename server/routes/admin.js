@@ -51,6 +51,40 @@ router.post('/restore-db', (req, res) => {
   res.json({ ok: true, size_bytes: buffer.length, message: 'Banco restaurado com sucesso.' });
 });
 
+// GET /api/admin/check-db
+router.get('/check-db', (req, res) => {
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey)
+    return res.status(500).json({ error: 'ADMIN_KEY não configurada no servidor' });
+
+  if (req.headers['x-admin-key'] !== adminKey)
+    return res.status(401).json({ error: 'Chave de admin inválida' });
+
+  const { db } = require('../database');
+
+  const fileExists = fs.existsSync(DB_PATH);
+  const fileSize   = fileExists ? fs.statSync(DB_PATH).size : null;
+
+  let expenses = null, users = null, dbError = null;
+  try {
+    expenses = db.prepare('SELECT COUNT(*) AS n FROM expenses').get().n;
+    users    = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+  } catch (err) {
+    dbError = err.message;
+  }
+
+  res.json({
+    node_env:      process.env.NODE_ENV || 'development',
+    db_path:       DB_PATH,
+    file_exists:   fileExists,
+    file_size_bytes: fileSize,
+    file_size_mb:  fileSize ? (fileSize / 1024 / 1024).toFixed(2) : null,
+    expenses_count: expenses,
+    users_count:    users,
+    db_error:       dbError,
+  });
+});
+
 // POST /api/admin/reset-password
 // Body: { username, new_password }
 router.post('/reset-password', (req, res) => {
