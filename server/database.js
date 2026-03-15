@@ -10,9 +10,46 @@ const DB_PATH = process.env.NODE_ENV === 'production'
 // Garante que o diretório existe (necessário no Railway na primeira execução)
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
-let _db = new Database(DB_PATH);
-_db.exec("PRAGMA journal_mode = WAL");
-_db.exec("PRAGMA foreign_keys = ON");
+function _openRawDatabase() {
+  const instance = new Database(DB_PATH);
+  instance.exec("PRAGMA journal_mode = WAL");
+  instance.exec("PRAGMA foreign_keys = ON");
+  return instance;
+}
+
+// Verifica integridade antes de abrir; deleta e recria se corrompido.
+function _ensureHealthyDatabase() {
+  if (!fs.existsSync(DB_PATH)) {
+    console.log('[db] nenhum banco encontrado, criando novo em', DB_PATH);
+    return _openRawDatabase();
+  }
+
+  let testDb = null;
+  let healthy = false;
+  try {
+    testDb = new Database(DB_PATH);
+    const row = testDb.prepare('PRAGMA integrity_check').get();
+    healthy = row && row.integrity_check === 'ok';
+    testDb.close();
+    testDb = null;
+  } catch (err) {
+    console.error('[db] erro ao verificar integridade do banco:', err.message);
+    try { if (testDb) testDb.close(); } catch (_) {}
+    testDb = null;
+  }
+
+  if (!healthy) {
+    console.warn('[db] banco corrompido ou ilegível — deletando e criando novo em', DB_PATH);
+    try { fs.unlinkSync(DB_PATH); } catch (_) {}
+    const fresh = _openRawDatabase();
+    console.log('[db] novo banco criado com sucesso');
+    return fresh;
+  }
+
+  return _openRawDatabase();
+}
+
+let _db = _ensureHealthyDatabase();
 
 // Proxy que sempre delega para a instância atual de _db.
 // Permite que as rotas mantenham uma referência a `db` mesmo após

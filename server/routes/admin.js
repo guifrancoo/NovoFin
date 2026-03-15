@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const path = require('path');
 const fs   = require('fs');
-const { reopenDatabase } = require('../database');
+const { reopenDatabase, initDatabase } = require('../database');
 
 const router = Router();
 
@@ -83,6 +83,41 @@ router.get('/check-db', (req, res) => {
     users_count:    users,
     db_error:       dbError,
   });
+});
+
+// GET /api/admin/delete-db
+// Header obrigatório: x-admin-key: <ADMIN_KEY do .env>
+// Fecha a conexão, deleta o arquivo do banco e recria um banco vazio inicializado.
+router.get('/delete-db', (req, res) => {
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey)
+    return res.status(500).json({ error: 'ADMIN_KEY não configurada no servidor' });
+
+  if (req.headers['x-admin-key'] !== adminKey)
+    return res.status(401).json({ error: 'Chave de admin inválida' });
+
+  try {
+    // Fecha a conexão atual antes de deletar
+    const { db } = require('../database');
+    try { db.close?.(); } catch (_) {}
+
+    if (fs.existsSync(DB_PATH)) {
+      fs.unlinkSync(DB_PATH);
+      console.log('[admin] arquivo do banco deletado:', DB_PATH);
+    } else {
+      console.log('[admin] arquivo do banco não existia:', DB_PATH);
+    }
+
+    // Reabre criando banco vazio e inicializa o schema
+    reopenDatabase();
+    initDatabase();
+
+    console.log('[admin] banco recriado e inicializado com sucesso');
+    res.json({ ok: true, message: 'Banco deletado e recriado com sucesso.' });
+  } catch (err) {
+    console.error('[admin] erro ao deletar banco:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /api/admin/reset-password
