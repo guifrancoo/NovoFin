@@ -184,26 +184,31 @@ router.post('/import-json', (req, res) => {
 
     const counts = {};
 
-    // Reimporta na ordem correta (pais antes de filhos)
-    const insertOrder = ['categories', 'payment_methods', 'subcategories', 'cutoff_dates', 'expenses', 'users'];
-    for (const table of insertOrder) {
-      const rows = payload[table];
-      if (!Array.isArray(rows) || rows.length === 0) {
-        counts[table] = 0;
-        continue;
+    db.exec('BEGIN TRANSACTION');
+    try {
+      // Reimporta na ordem correta (pais antes de filhos)
+      const insertOrder = ['categories', 'payment_methods', 'subcategories', 'cutoff_dates', 'expenses', 'users'];
+      for (const table of insertOrder) {
+        const rows = payload[table];
+        if (!Array.isArray(rows) || rows.length === 0) {
+          counts[table] = 0;
+          continue;
+        }
+
+        const cols   = Object.keys(rows[0]);
+        const params = cols.map(() => '?').join(', ');
+        const stmt   = db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${params})`);
+
+        for (const row of rows) stmt.run(...cols.map(c => row[c]));
+
+        counts[table] = rows.length;
+        console.log(`[admin] import-json: ${table} — ${rows.length} registros`);
       }
 
-      const cols   = Object.keys(rows[0]);
-      const params = cols.map(() => '?').join(', ');
-      const stmt   = db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${params})`);
-
-      const insertMany = db.transaction((rowList) => {
-        for (const row of rowList) stmt.run(...cols.map(c => row[c]));
-      });
-      insertMany(rows);
-
-      counts[table] = rows.length;
-      console.log(`[admin] import-json: ${table} — ${rows.length} registros`);
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
     }
 
     db.exec('PRAGMA foreign_keys = ON');
