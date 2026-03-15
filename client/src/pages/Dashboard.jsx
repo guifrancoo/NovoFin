@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   getDashboard, getPaymentMethods, getCategories,
   updateExpense, updateGroup, deleteGroup,
-  fmtCurrency, fmtDate,
+  getDateRange, fmtCurrency, fmtDate,
 } from '../api';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
@@ -14,7 +14,10 @@ const COLORS = [
   '#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#a855f7',
 ];
 
-const MIN_MONTH = '2016-01';
+const MONTH_LABELS = [
+  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
+];
 
 function currentYM() {
   const d = new Date();
@@ -28,22 +31,52 @@ function shiftMonth(ym, delta) {
 }
 
 // ─── Month navigation ──────────────────────────────────────────────────────────
-function MonthNav({ value, onChange }) {
+function MonthNav({ value, onChange, minMonth, maxMonth }) {
+  const [year, month] = value.split('-').map(Number);
+  const minY = minMonth ? Number(minMonth.split('-')[0]) : 2016;
+  const maxY = maxMonth ? Number(maxMonth.split('-')[0]) : new Date().getFullYear();
+  const years = [];
+  for (let y = minY; y <= maxY; y++) years.push(y);
+
+  const handleMonth = (e) => {
+    onChange(`${year}-${String(e.target.value).padStart(2, '0')}`);
+  };
+  const handleYear = (e) => {
+    onChange(`${e.target.value}-${String(month).padStart(2, '0')}`);
+  };
+
+  const atMin = minMonth ? value <= minMonth : false;
+  const atMax = value >= (maxMonth || currentYM());
+
   return (
     <div className="flex items-center gap-1">
       <button
         onClick={() => onChange(shiftMonth(value, -1))}
-        disabled={value <= MIN_MONTH}
+        disabled={atMin}
         className="px-2 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-30"
       >←</button>
-      <input
-        type="month" value={value} min={MIN_MONTH}
-        onChange={(e) => onChange(e.target.value)}
+      <select
+        value={month}
+        onChange={handleMonth}
         className="border rounded px-2 py-1 text-sm"
-      />
+      >
+        {MONTH_LABELS.map((label, i) => (
+          <option key={i + 1} value={i + 1}>{label}</option>
+        ))}
+      </select>
+      <select
+        value={year}
+        onChange={handleYear}
+        className="border rounded px-2 py-1 text-sm"
+      >
+        {years.map((y) => (
+          <option key={y} value={y}>{y}</option>
+        ))}
+      </select>
       <button
         onClick={() => onChange(shiftMonth(value, 1))}
-        className="px-2 py-1 rounded border text-sm hover:bg-gray-100"
+        disabled={atMax}
+        className="px-2 py-1 rounded border text-sm hover:bg-gray-100 disabled:opacity-30"
       >→</button>
     </div>
   );
@@ -225,6 +258,8 @@ export default function Dashboard() {
   const [categories, setCats] = useState([]);
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
+  const [minMonth, setMinMonth] = useState('');
+  const maxMonth = currentYM();
 
   const loadDashboard = useCallback(() => {
     setLoading(true);
@@ -236,6 +271,9 @@ export default function Dashboard() {
   useEffect(() => {
     getPaymentMethods().then((r) => setMethods(r.data));
     getCategories().then((r) => setCats(r.data));
+    getDateRange().then((r) => {
+      if (r.data.min_month) setMinMonth(r.data.min_month);
+    });
   }, []);
 
   const handleSaved = () => { setEditingExpense(null); loadDashboard(); };
@@ -274,7 +312,7 @@ export default function Dashboard() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <MonthNav value={month} onChange={setMonth} />
+        <MonthNav value={month} onChange={setMonth} minMonth={minMonth} maxMonth={maxMonth} />
       </div>
 
       {/* KPI cards — 4 cards: Receita, Despesa, Saldo mês, Saldo acumulado */}

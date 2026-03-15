@@ -28,6 +28,7 @@ export const getMe = ()     => api.get('/auth/me');
 
 // Expenses
 export const getExpenses   = (params) => api.get('/expenses', { params });
+export const getDateRange  = ()       => api.get('/expenses/date-range');
 export const createExpense = (data)   => api.post('/expenses', data);
 export const updateExpense = (id, data) => api.patch(`/expenses/${id}`, data);
 export const updateGroup   = (gid, data) => api.patch(`/expenses/group/${gid}`, data);

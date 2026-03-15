@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   getReportByCategory, getReportByMonth, getReportByPaymentMethod,
-  fmtCurrency,
+  getDateRange, fmtCurrency,
 } from '../api';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
@@ -12,21 +12,66 @@ const COLORS = [
   '#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#a855f7',
 ];
 
-const MIN_MONTH = '2016-01';
+const MONTH_LABELS = [
+  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
+];
 
 function currentYM() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function MonthYearPicker({ value, onChange, minMonth, maxMonth }) {
+  const [year, month] = value.split('-').map(Number);
+  const minY = minMonth ? Number(minMonth.split('-')[0]) : 2016;
+  const maxY = maxMonth ? Number(maxMonth.split('-')[0]) : new Date().getFullYear();
+  const years = [];
+  for (let y = minY; y <= maxY; y++) years.push(y);
+
+  return (
+    <div className="flex items-center gap-1">
+      <select
+        value={month}
+        onChange={(e) => onChange(`${year}-${String(e.target.value).padStart(2, '0')}`)}
+        className="border rounded px-2 py-1 text-sm"
+      >
+        {MONTH_LABELS.map((label, i) => (
+          <option key={i + 1} value={i + 1}>{label}</option>
+        ))}
+      </select>
+      <select
+        value={year}
+        onChange={(e) => onChange(`${e.target.value}-${String(month).padStart(2, '0')}`)}
+        className="border rounded px-2 py-1 text-sm"
+      >
+        {years.map((y) => (
+          <option key={y} value={y}>{y}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function Reports() {
-  const [start, setStart] = useState(MIN_MONTH);
+  const [minMonth, setMinMonth] = useState('2016-01');
+  const maxMonth = currentYM();
+  const [start, setStart] = useState('2016-01');
   const [end,   setEnd]   = useState(currentYM);
   const [byCategory, setByCategory] = useState([]);
   const [byMonth,    setByMonth]    = useState([]);
   const [byMethod,   setByMethod]   = useState([]);
   const [loading, setLoading]       = useState(false);
   const [expanded, setExpanded]     = useState({});
+
+  useEffect(() => {
+    getDateRange().then((r) => {
+      if (r.data.min_month) {
+        setMinMonth(r.data.min_month);
+        setStart(r.data.min_month);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (start > end) return;
@@ -54,19 +99,11 @@ export default function Reports() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-4">
         <h1 className="text-2xl font-bold">Relatórios</h1>
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-2 ml-auto flex-wrap">
           <label className="text-sm text-gray-600">De</label>
-          <input
-            type="month" value={start} min={MIN_MONTH}
-            onChange={(e) => setStart(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
-          />
+          <MonthYearPicker value={start} onChange={setStart} minMonth={minMonth} maxMonth={maxMonth} />
           <label className="text-sm text-gray-600">até</label>
-          <input
-            type="month" value={end} min={MIN_MONTH}
-            onChange={(e) => setEnd(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
-          />
+          <MonthYearPicker value={end} onChange={setEnd} minMonth={minMonth} maxMonth={maxMonth} />
         </div>
       </div>
 

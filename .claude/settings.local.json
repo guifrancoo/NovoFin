@@ -66,7 +66,14 @@
       "Bash(cd \"C:\\\\Users\\\\gfp0\\\\Desktop\\\\financeiro-pessoal\\\\server\" && node --no-warnings=ExperimentalWarning -e \"\nconst { randomUUID } = require\\('crypto'\\);\nconst { DatabaseSync } = require\\('node:sqlite'\\);\nconst db = new DatabaseSync\\('financeiro.db'\\);\n\nconst id = randomUUID\\(\\);\ndb.prepare\\(\\\\`\n  INSERT INTO expenses \\(group_id, purchase_date, due_date, category, payment_method,\n    description, total_amount, installments, installment_number, installment_amount\\)\n  VALUES \\(?, '2016-02-01', '2016-02-01', 'Banco', 'Dinheiro',\n    'Ajuste saldo inicial', 2897.60, 1, 1, 2897.60\\)\n\\\\`\\).run\\(id\\);\n\nconst check = db.prepare\\(\\\\`\n  SELECT COALESCE\\(SUM\\(installment_amount\\), 0\\) AS net_accumulated\n  FROM expenses\n  WHERE payment_method = 'Dinheiro'\n    AND strftime\\('%Y-%m', purchase_date\\) <= '2026-03'\n\\\\`\\).get\\(\\);\n\nconsole.log\\('Saldo acumulado após ajuste:', check.net_accumulated.toFixed\\(2\\)\\);\n\")",
       "Bash(cd \"C:\\\\Users\\\\gfp0\\\\Desktop\\\\financeiro-pessoal\\\\server\" && npm install jsonwebtoken bcryptjs dotenv 2>&1 | tail -5)",
       "Bash(cd \"C:\\\\Users\\\\gfp0\\\\Desktop\\\\financeiro-pessoal\" && npm run build 2>&1 | tail -15)",
-      "Bash(cd \"C:\\\\Users\\\\gfp0\\\\Desktop\\\\financeiro-pessoal\" && NODE_ENV=production node --no-warnings=ExperimentalWarning -e \"\nrequire\\('./server/node_modules/dotenv'\\).config\\({ path: './server/.env' }\\);\nconsole.log\\('JWT_SECRET definido:', !!process.env.JWT_SECRET\\);\nconsole.log\\('PORT:', process.env.PORT\\);\n\")"
+      "Bash(cd \"C:\\\\Users\\\\gfp0\\\\Desktop\\\\financeiro-pessoal\" && NODE_ENV=production node --no-warnings=ExperimentalWarning -e \"\nrequire\\('./server/node_modules/dotenv'\\).config\\({ path: './server/.env' }\\);\nconsole.log\\('JWT_SECRET definido:', !!process.env.JWT_SECRET\\);\nconsole.log\\('PORT:', process.env.PORT\\);\n\")",
+      "Bash(tree:*)",
+      "Bash(cd:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c \"taskkill /PID 2972 /F\")",
+      "Bash(cmd /c \"taskkill /PID 2972 /F 2>&1\")",
+      "Bash(powershell -Command \"Stop-Process -Id 2972 -Force -ErrorAction SilentlyContinue; Write-Host 'done'\")"
     ]
   }
 }

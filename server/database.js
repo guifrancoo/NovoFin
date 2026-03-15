@@ -1,4 +1,4 @@
-const Database = require('better-sqlite3');
+const { DatabaseSync: Database } = require('node:sqlite');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
@@ -6,8 +6,8 @@ const DB_PATH = path.join(__dirname, 'financeiro.db');
 
 const db = new Database(DB_PATH);
 
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+db.exec("PRAGMA journal_mode = WAL");
+db.exec("PRAGMA foreign_keys = ON");
 
 function initDatabase() {
   // --- Core tables ---
@@ -39,6 +39,9 @@ function initDatabase() {
   // Migrate: add subcategory column if it doesn't exist yet (safe to call multiple times)
   try { db.exec('ALTER TABLE expenses ADD COLUMN subcategory TEXT'); } catch (_) {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_subcategory ON expenses(subcategory)'); } catch (_) {}
+
+  // Migrate: add exclude_from_reports flag to categories
+  try { db.exec('ALTER TABLE categories ADD COLUMN exclude_from_reports INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
 
   // --- Supporting tables ---
   db.exec(`
@@ -93,6 +96,11 @@ function initDatabase() {
   ];
   const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
   for (const c of defaultCategories) insertCat.run(c);
+
+  // Ensure "Pagamentos Cartões" category exists and is flagged to exclude from reports
+  db.prepare("INSERT OR IGNORE INTO categories (name, exclude_from_reports) VALUES ('Pagamentos Cartões', 1)").run();
+  // Mark any existing variation (case-insensitive LIKE) — catches "Pagamentos CartõEs" etc.
+  db.prepare("UPDATE categories SET exclude_from_reports = 1 WHERE LOWER(name) LIKE '%pagamentos cart%'").run();
 
   // --- Users table ---
   db.exec(`

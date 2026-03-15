@@ -20,6 +20,7 @@ router.get('/by-category', (req, res) => {
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
       AND installment_amount < 0
+      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
     GROUP BY category
     ORDER BY total DESC
   `).all(startDate, endDate);
@@ -33,6 +34,7 @@ router.get('/by-category', (req, res) => {
     WHERE purchase_date BETWEEN ? AND ?
       AND installment_amount < 0
       AND subcategory IS NOT NULL
+      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
     GROUP BY category, subcategory
     ORDER BY category, total DESC
   `).all(startDate, endDate);
@@ -64,6 +66,7 @@ router.get('/by-month', (req, res) => {
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
       AND installment_amount < 0
+      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
   `;
   const params = [startDate, endDate];
 
@@ -87,6 +90,7 @@ router.get('/by-payment-method', (req, res) => {
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
       AND installment_amount < 0
+      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
     GROUP BY payment_method
     ORDER BY total DESC
   `).all(startDate, endDate);

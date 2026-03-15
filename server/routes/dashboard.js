@@ -7,13 +7,14 @@ const router = Router();
 router.get('/', (req, res) => {
   const month = req.query.month || new Date().toISOString().slice(0, 7);
 
-  // Income and expense for the selected month
+  // Income and expense for the selected month (excluding card-bill-payment category)
   const totalRow = db.prepare(`
     SELECT
       COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0) AS income,
       COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0) AS expense
     FROM expenses
     WHERE strftime('%Y-%m', purchase_date) = ?
+      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
   `).get(month);
 
   // Cash balance: sum of Dinheiro-only transactions up to end of selected month.
@@ -35,17 +36,19 @@ router.get('/', (req, res) => {
       COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0) AS expense
     FROM expenses
     WHERE strftime('%Y-%m', purchase_date) = ?
+      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
     GROUP BY payment_method
     ORDER BY expense DESC
   `).all(month);
 
-  // Only show expenses in the category pie (negative amounts)
+  // Only show expenses in the category pie (negative amounts), excluding card-bill-payment
   const byCategory = db.prepare(`
     SELECT category,
            ABS(COALESCE(SUM(installment_amount), 0)) AS total
     FROM expenses
     WHERE strftime('%Y-%m', purchase_date) = ?
       AND installment_amount < 0
+      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
     GROUP BY category
     ORDER BY total DESC
   `).all(month);
@@ -65,6 +68,7 @@ router.get('/', (req, res) => {
     FROM expenses
     WHERE purchase_date >= date(?, '-5 months', 'start of month')
       AND purchase_date <  date(?, '+1 month',  'start of month')
+      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
     GROUP BY month
     ORDER BY month
   `).all(`${month}-01`, `${month}-01`);

@@ -41,6 +41,17 @@ router.get('/', (req, res) => {
   res.json(db.prepare(sql).all(...params));
 });
 
+// GET /api/expenses/date-range — min and max purchase_date months in the DB
+router.get('/date-range', (req, res) => {
+  const row = db.prepare(`
+    SELECT
+      strftime('%Y-%m', MIN(purchase_date)) AS min_month,
+      strftime('%Y-%m', MAX(purchase_date)) AS max_month
+    FROM expenses
+  `).get();
+  res.json(row || { min_month: null, max_month: null });
+});
+
 // GET /api/expenses/:id
 router.get('/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);

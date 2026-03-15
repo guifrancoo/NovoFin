@@ -3,12 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon --exec \"node --no-warnings=ExperimentalWarning\" index.js"
+    "start": "node --experimental-sqlite index.js",
+    "dev": "nodemon --exec \"node --experimental-sqlite --no-warnings=ExperimentalWarning\" index.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^9.4.3",
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "express": "^4.18.2",
