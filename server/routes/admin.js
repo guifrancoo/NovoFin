@@ -43,12 +43,46 @@ router.post('/restore-db', (req, res) => {
   }
 
   fs.writeFileSync(DB_PATH, buffer);
-  reopenDatabase();
-
   const sizeMB = (buffer.length / 1024 / 1024).toFixed(2);
-  console.log(`[admin] banco restaurado (${sizeMB} MB)`);
+  console.log(`[admin] arquivo gravado em disco (${sizeMB} MB)`);
 
-  res.json({ ok: true, size_bytes: buffer.length, message: 'Banco restaurado com sucesso.' });
+  // Diagnóstico: abre conexão SEPARADA direto no arquivo recém-gravado
+  let diagExpenses = null, diagUsers = null, diagIntegrity = null, diagError = null;
+  try {
+    const { DatabaseSync } = require('node:sqlite');
+    const diagDb = new DatabaseSync(DB_PATH);
+    diagIntegrity = diagDb.prepare('PRAGMA integrity_check').get();
+    diagExpenses  = diagDb.prepare('SELECT COUNT(*) AS n FROM expenses').get().n;
+    diagUsers     = diagDb.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+    diagDb.close();
+    console.log('[admin] diagnóstico pós-gravação:', { integrity: diagIntegrity, expenses: diagExpenses, users: diagUsers });
+  } catch (err) {
+    diagError = err.message;
+    console.error('[admin] erro no diagnóstico pós-gravação:', err.message);
+  }
+
+  reopenDatabase();
+  console.log('[admin] reopenDatabase() concluído');
+
+  // Conta novamente via proxy após reopen
+  let postExpenses = null, postUsers = null, postError = null;
+  try {
+    const { db } = require('../database');
+    postExpenses = db.prepare('SELECT COUNT(*) AS n FROM expenses').get().n;
+    postUsers    = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+    console.log('[admin] contagem pós-reopen via proxy:', { expenses: postExpenses, users: postUsers });
+  } catch (err) {
+    postError = err.message;
+    console.error('[admin] erro na contagem pós-reopen:', err.message);
+  }
+
+  res.json({
+    ok: true,
+    size_bytes: buffer.length,
+    message: 'Banco restaurado com sucesso.',
+    diag_post_write:  { integrity: diagIntegrity, expenses: diagExpenses, users: diagUsers, error: diagError },
+    diag_post_reopen: { expenses: postExpenses, users: postUsers, error: postError },
+  });
 });
 
 // GET /api/admin/check-db
