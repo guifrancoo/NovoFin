@@ -1,8 +1,14 @@
 const { DatabaseSync: Database } = require('node:sqlite');
 const path = require('path');
+const fs   = require('fs');
 const bcrypt = require('bcryptjs');
 
-const DB_PATH = path.join(__dirname, 'financeiro.db');
+const DB_PATH = process.env.NODE_ENV === 'production'
+  ? '/app/server/data/financeiro.db'
+  : path.join(__dirname, 'financeiro.db');
+
+// Garante que o diretório existe (necessário no Railway na primeira execução)
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new Database(DB_PATH);
 

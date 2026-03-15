@@ -4,7 +4,9 @@ const fs   = require('fs');
 
 const router = Router();
 
-const DB_PATH = path.join(__dirname, '..', 'financeiro.db');
+const DB_PATH = process.env.NODE_ENV === 'production'
+  ? '/app/server/data/financeiro.db'
+  : path.join(__dirname, '..', 'financeiro.db');
 
 // POST /api/admin/restore-db
 // Header obrigatório: x-admin-key: <ADMIN_KEY do .env>
