@@ -47,7 +47,6 @@ app.use('/api/subcategories',   requireAuth, subcategoriesRouter);
 // Servir frontend buildado (produção ou quando o dist existir)
 const distPath = path.join(__dirname, '..', 'client', 'dist');
 const distIndex = path.join(distPath, 'index.html');
-const fs = require('fs');
 if (PROD || fs.existsSync(distIndex)) {
   app.use(express.static(distPath));
   app.get('*', (_req, res) => res.sendFile(distIndex));
