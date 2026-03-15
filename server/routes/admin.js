@@ -50,4 +50,32 @@ router.post('/restore-db', (req, res) => {
   setTimeout(() => process.exit(0), 300);
 });
 
+// POST /api/admin/reset-password
+// Body: { username, new_password }
+router.post('/reset-password', (req, res) => {
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey)
+    return res.status(500).json({ error: 'ADMIN_KEY não configurada no servidor' });
+
+  if (req.headers['x-admin-key'] !== adminKey)
+    return res.status(401).json({ error: 'Chave de admin inválida' });
+
+  const { username, new_password } = req.body;
+  if (!username || !new_password)
+    return res.status(400).json({ error: 'username e new_password são obrigatórios' });
+
+  const bcrypt = require('bcryptjs');
+  const { db } = require('../database');
+
+  const user = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  if (!user)
+    return res.status(404).json({ error: `Usuário "${username}" não encontrado` });
+
+  const hash = bcrypt.hashSync(new_password, 10);
+  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
+
+  console.log(`[admin] senha do usuário "${username}" redefinida`);
+  res.json({ ok: true, message: `Senha do usuário "${username}" atualizada com sucesso` });
+});
+
 module.exports = router;
