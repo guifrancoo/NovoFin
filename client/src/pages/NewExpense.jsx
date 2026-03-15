@@ -58,10 +58,7 @@ export default function NewExpense() {
     isReceita ? c.is_income === 1 : c.is_income !== 1
   );
 
-  // Para receitas, ocultar métodos de cartão
-  const filteredMethods = isReceita
-    ? methods.filter((m) => !m.is_card)
-    : methods;
+  const filteredMethods = methods;
 
   const selectedMethod = methods.find((m) => m.name === form.payment_method);
   const isCard = selectedMethod?.is_card;
