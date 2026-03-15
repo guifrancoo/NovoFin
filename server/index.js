@@ -6,6 +6,7 @@ const path    = require('path');
 const { initDatabase } = require('./database');
 
 const authRouter           = require('./routes/auth');
+const adminRouter          = require('./routes/admin');
 const expensesRouter       = require('./routes/expenses');
 const dashboardRouter      = require('./routes/dashboard');
 const invoicesRouter       = require('./routes/invoices');
@@ -25,10 +26,11 @@ if (!PROD) {
   app.use(cors({ origin: 'http://localhost:5173' }));
 }
 
-app.use(express.json());
+app.use(express.json({ limit: '100mb' }));
 
 // Rotas públicas
-app.use('/api/auth', authRouter);
+app.use('/api/auth',  authRouter);
+app.use('/api/admin', adminRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // Rotas protegidas
