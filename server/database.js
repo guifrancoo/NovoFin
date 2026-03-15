@@ -12,12 +12,13 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 function _openRawDatabase() {
   const instance = new Database(DB_PATH);
-  instance.exec("PRAGMA journal_mode = WAL");
   instance.exec("PRAGMA foreign_keys = ON");
   return instance;
 }
 
-// Verifica integridade antes de abrir; deleta e recria se corrompido.
+// Verifica integridade do banco.
+// Só deleta e recria se o arquivo NÃO puder ser aberto (corrompido/ilegível).
+// Se o arquivo existir e abrir normalmente, usa ele como está — nunca descarta dados.
 function _ensureHealthyDatabase() {
   if (!fs.existsSync(DB_PATH)) {
     console.log('[db] nenhum banco encontrado, criando novo em', DB_PATH);
@@ -25,21 +26,20 @@ function _ensureHealthyDatabase() {
   }
 
   let testDb = null;
-  let healthy = false;
   try {
     testDb = new Database(DB_PATH);
     const row = testDb.prepare('PRAGMA integrity_check').get();
-    healthy = row && row.integrity_check === 'ok';
     testDb.close();
     testDb = null;
+    if (row && row.integrity_check !== 'ok') {
+      console.warn('[db] integrity_check retornou:', row.integrity_check, '— abrindo mesmo assim');
+    } else {
+      console.log('[db] banco íntegro, abrindo:', DB_PATH);
+    }
   } catch (err) {
-    console.error('[db] erro ao verificar integridade do banco:', err.message);
+    // Só chega aqui se o arquivo for completamente ilegível (header corrompido, etc.)
+    console.error('[db] arquivo ilegível, deletando e criando novo:', err.message);
     try { if (testDb) testDb.close(); } catch (_) {}
-    testDb = null;
-  }
-
-  if (!healthy) {
-    console.warn('[db] banco corrompido ou ilegível — deletando e criando novo em', DB_PATH);
     try { fs.unlinkSync(DB_PATH); } catch (_) {}
     const fresh = _openRawDatabase();
     console.log('[db] novo banco criado com sucesso');
@@ -61,12 +61,13 @@ const db = new Proxy({}, {
   },
 });
 
+// Fecha e reabre a conexão com o arquivo em disco (ex: após restore).
+// NÃO chama initDatabase() — quem precisa disso chama explicitamente.
 function reopenDatabase() {
   try { _db.close(); } catch (_) {}
   _db = new Database(DB_PATH);
-  _db.exec("PRAGMA journal_mode = WAL");
   _db.exec("PRAGMA foreign_keys = ON");
-  console.log('[db] conexão reaberta com o novo banco em', DB_PATH);
+  console.log('[db] conexão reaberta com o banco em', DB_PATH);
 }
 
 function initDatabase() {
