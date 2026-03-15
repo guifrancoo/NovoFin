@@ -26,35 +26,23 @@ if (!serverUrl || !adminKey) {
   process.exit(1);
 }
 
-const DB_PATH  = path.join(__dirname, 'server', 'financeiro.db');
-const WAL_PATH = DB_PATH + '-wal';
-const SHM_PATH = DB_PATH + '-shm';
+const EXPORT_PATH = path.join(__dirname, 'server', 'financeiro-export.db');
 
-if (!fs.existsSync(DB_PATH)) {
-  console.error('Banco não encontrado em:', DB_PATH);
-  process.exit(1);
-}
-
-// Avisa se existem arquivos WAL que podem indicar banco inconsistente
-const walExists = fs.existsSync(WAL_PATH);
-const shmExists = fs.existsSync(SHM_PATH);
-if (walExists || shmExists) {
+if (!fs.existsSync(EXPORT_PATH)) {
   console.error('');
-  console.error('⚠️  ATENÇÃO: arquivos WAL detectados:');
-  if (walExists) console.error('   ' + WAL_PATH, `(${(fs.statSync(WAL_PATH).size / 1024).toFixed(0)} KB)`);
-  if (shmExists) console.error('   ' + SHM_PATH);
+  console.error('Export não encontrado em:', EXPORT_PATH);
   console.error('');
-  console.error('   O banco pode estar incompleto. Execute primeiro:');
-  console.error('   node --experimental-sqlite fix-db.js');
+  console.error('Execute primeiro:');
+  console.error('  node --experimental-sqlite fix-db.js');
   console.error('');
   process.exit(1);
 }
 
-const dbBuffer = fs.readFileSync(DB_PATH);
+const dbBuffer = fs.readFileSync(EXPORT_PATH);
 const dbBase64 = dbBuffer.toString('base64');
 const sizeMB   = (dbBuffer.length / 1024 / 1024).toFixed(2);
 
-console.log(`Banco local: ${DB_PATH} (${sizeMB} MB)`);
+console.log(`Banco export: ${EXPORT_PATH} (${sizeMB} MB)`);
 console.log(`Enviando para: ${serverUrl}/api/admin/restore-db ...`);
 
 const body = JSON.stringify({ db: dbBase64 });

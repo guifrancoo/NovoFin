@@ -7,3 +7,4 @@ server/financeiro.db-shm
 client/dist/
 .env
 server/.env
+server/financeiro-export.db
