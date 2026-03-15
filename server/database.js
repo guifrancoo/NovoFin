@@ -40,9 +40,6 @@ function initDatabase() {
   try { db.exec('ALTER TABLE expenses ADD COLUMN subcategory TEXT'); } catch (_) {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_subcategory ON expenses(subcategory)'); } catch (_) {}
 
-  // Migrate: add exclude_from_reports flag to categories
-  try { db.exec('ALTER TABLE categories ADD COLUMN exclude_from_reports INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
-
   // --- Supporting tables ---
   db.exec(`
     CREATE TABLE IF NOT EXISTS payment_methods (
@@ -53,9 +50,10 @@ function initDatabase() {
     );
 
     CREATE TABLE IF NOT EXISTS categories (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      name       TEXT NOT NULL UNIQUE,
-      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      name                 TEXT NOT NULL UNIQUE,
+      exclude_from_reports INTEGER NOT NULL DEFAULT 0,
+      created_at           TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS subcategories (
@@ -77,6 +75,9 @@ function initDatabase() {
       UNIQUE(payment_method_id, year, month)
     );
   `);
+
+  // Migrate: add exclude_from_reports to categories for existing DBs (safe, try/catch)
+  try { db.exec('ALTER TABLE categories ADD COLUMN exclude_from_reports INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
 
   // --- Seed default payment methods (once) ---
   const defaultMethods = [
