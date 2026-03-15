@@ -6,6 +6,7 @@
   },
   "deploy": {
     "startCommand": "node --experimental-sqlite server/index.js",
-    "restartPolicyType": "ON_FAILURE"
+    "healthcheckPath": "/api/health",
+    "restartPolicyType": "ALWAYS"
   }
 }

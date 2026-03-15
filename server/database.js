@@ -147,4 +147,4 @@ function initDatabase() {
   console.log('Database initialised at', DB_PATH);
 }
 
-module.exports = { db, initDatabase, reopenDatabase };
+module.exports = { db, DB_PATH, initDatabase, reopenDatabase };

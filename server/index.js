@@ -3,7 +3,8 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
-const { initDatabase } = require('./database');
+const fs      = require('fs');
+const { initDatabase, DB_PATH } = require('./database');
 
 const authRouter           = require('./routes/auth');
 const adminRouter          = require('./routes/admin');
@@ -56,6 +57,23 @@ app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: err.message || 'Internal server error' });
 });
+
+// ── Diagnóstico do banco antes de inicializar ─────────────────────────────────
+console.log('=== STARTUP DIAGNOSTICS ===');
+console.log('NODE_ENV  :', process.env.NODE_ENV || 'development');
+console.log('DB_PATH   :', DB_PATH);
+const dbExists   = fs.existsSync(DB_PATH);
+const dbSizeBytes = dbExists ? fs.statSync(DB_PATH).size : 0;
+console.log('DB exists :', dbExists);
+console.log('DB size   :', dbExists ? `${(dbSizeBytes / 1024 / 1024).toFixed(2)} MB (${dbSizeBytes} bytes)` : 'n/a');
+try {
+  const dirContents = fs.readdirSync(path.dirname(DB_PATH));
+  console.log('Dir contents:', dirContents);
+} catch (e) {
+  console.log('Dir contents: (erro ao listar)', e.message);
+}
+console.log('===========================');
+// ─────────────────────────────────────────────────────────────────────────────
 
 initDatabase();
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
