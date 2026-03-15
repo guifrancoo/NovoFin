@@ -26,10 +26,27 @@ if (!serverUrl || !adminKey) {
   process.exit(1);
 }
 
-const DB_PATH = path.join(__dirname, 'server', 'financeiro.db');
+const DB_PATH  = path.join(__dirname, 'server', 'financeiro.db');
+const WAL_PATH = DB_PATH + '-wal';
+const SHM_PATH = DB_PATH + '-shm';
 
 if (!fs.existsSync(DB_PATH)) {
   console.error('Banco não encontrado em:', DB_PATH);
+  process.exit(1);
+}
+
+// Avisa se existem arquivos WAL que podem indicar banco inconsistente
+const walExists = fs.existsSync(WAL_PATH);
+const shmExists = fs.existsSync(SHM_PATH);
+if (walExists || shmExists) {
+  console.error('');
+  console.error('⚠️  ATENÇÃO: arquivos WAL detectados:');
+  if (walExists) console.error('   ' + WAL_PATH, `(${(fs.statSync(WAL_PATH).size / 1024).toFixed(0)} KB)`);
+  if (shmExists) console.error('   ' + SHM_PATH);
+  console.error('');
+  console.error('   O banco pode estar incompleto. Execute primeiro:');
+  console.error('   node --experimental-sqlite fix-db.js');
+  console.error('');
   process.exit(1);
 }
 
