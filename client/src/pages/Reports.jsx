@@ -56,7 +56,8 @@ function MonthYearPicker({ value, onChange, minMonth, maxMonth }) {
 export default function Reports() {
   const [minMonth, setMinMonth] = useState('2016-01');
   const maxMonth = currentYM();
-  const [start, setStart] = useState('2016-01');
+  // Default: janeiro do ano atual até mês atual
+  const [start, setStart] = useState(() => `${new Date().getFullYear()}-01`);
   const [end,   setEnd]   = useState(currentYM);
   const [byCategory, setByCategory] = useState([]);
   const [byMonth,    setByMonth]    = useState([]);
@@ -66,10 +67,8 @@ export default function Reports() {
 
   useEffect(() => {
     getDateRange().then((r) => {
-      if (r.data.min_month) {
-        setMinMonth(r.data.min_month);
-        setStart(r.data.min_month);
-      }
+      if (r.data.min_month) setMinMonth(r.data.min_month);
+      // não altera `start` — mantém o default de jan/ano-atual
     });
   }, []);
 

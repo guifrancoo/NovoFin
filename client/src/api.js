@@ -42,8 +42,8 @@ export const updateGroup   = (gid, data) => api.patch(`/expenses/group/${gid}`, 
 export const deleteExpense = (id)     => api.delete(`/expenses/${id}`);
 export const deleteGroup   = (gid)    => api.delete(`/expenses/group/${gid}`);
 
-// Dashboard
-export const getDashboard  = (month)  => api.get('/dashboard', { params: { month } });
+// Dashboard — aceita { month } para mês único ou { start, end } para período
+export const getDashboard  = (params) => api.get('/dashboard', { params });
 
 // Invoices
 export const getInvoices   = () => api.get('/invoices');

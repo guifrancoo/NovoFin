@@ -30,20 +30,13 @@ function shiftMonth(ym, delta) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// ─── Month navigation ──────────────────────────────────────────────────────────
+// ─── Month navigation (com setas) ──────────────────────────────────────────────
 function MonthNav({ value, onChange, minMonth, maxMonth }) {
   const [year, month] = value.split('-').map(Number);
   const minY = minMonth ? Number(minMonth.split('-')[0]) : 2016;
   const maxY = maxMonth ? Number(maxMonth.split('-')[0]) : new Date().getFullYear();
   const years = [];
   for (let y = minY; y <= maxY; y++) years.push(y);
-
-  const handleMonth = (e) => {
-    onChange(`${year}-${String(e.target.value).padStart(2, '0')}`);
-  };
-  const handleYear = (e) => {
-    onChange(`${e.target.value}-${String(month).padStart(2, '0')}`);
-  };
 
   const atMin = minMonth ? value <= minMonth : false;
   const atMax = value >= (maxMonth || currentYM());
@@ -57,7 +50,7 @@ function MonthNav({ value, onChange, minMonth, maxMonth }) {
       >←</button>
       <select
         value={month}
-        onChange={handleMonth}
+        onChange={(e) => onChange(`${year}-${String(e.target.value).padStart(2, '0')}`)}
         className="border rounded px-2 py-1 text-sm"
       >
         {MONTH_LABELS.map((label, i) => (
@@ -66,7 +59,7 @@ function MonthNav({ value, onChange, minMonth, maxMonth }) {
       </select>
       <select
         value={year}
-        onChange={handleYear}
+        onChange={(e) => onChange(`${e.target.value}-${String(month).padStart(2, '0')}`)}
         className="border rounded px-2 py-1 text-sm"
       >
         {years.map((y) => (
@@ -82,6 +75,36 @@ function MonthNav({ value, onChange, minMonth, maxMonth }) {
   );
 }
 
+// ─── Month/Year picker (sem setas, para seleção de intervalo) ──────────────────
+function MonthYearPicker({ value, onChange, minMonth, maxMonth }) {
+  const [year, month] = value.split('-').map(Number);
+  const minY = minMonth ? Number(minMonth.split('-')[0]) : 2000;
+  const maxY = maxMonth ? Number(maxMonth.split('-')[0]) : new Date().getFullYear();
+  const years = [];
+  for (let y = minY; y <= maxY; y++) years.push(y);
+
+  return (
+    <div className="flex gap-1">
+      <select
+        value={month}
+        onChange={(e) => onChange(`${year}-${String(e.target.value).padStart(2, '0')}`)}
+        className="border rounded px-2 py-1 text-sm"
+      >
+        {MONTH_LABELS.map((label, i) => (
+          <option key={i + 1} value={i + 1}>{label}</option>
+        ))}
+      </select>
+      <select
+        value={year}
+        onChange={(e) => onChange(`${e.target.value}-${String(month).padStart(2, '0')}`)}
+        className="border rounded px-2 py-1 text-sm"
+      >
+        {years.map((y) => <option key={y} value={y}>{y}</option>)}
+      </select>
+    </div>
+  );
+}
+
 // ─── Edit Modal ────────────────────────────────────────────────────────────────
 function EditModal({ expense, methods, categories, onSave, onClose }) {
   const isGroup = expense.installments > 1;
@@ -93,7 +116,6 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
     location:           expense.location || '',
     payment_method:     expense.payment_method,
     description:        expense.description || '',
-    // Always show absolute value — sign is handled on submit
     total_amount:       String(Math.abs(expense.total_amount)),
     installment_amount: String(Math.abs(expense.installment_amount)),
   });
@@ -114,7 +136,6 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
           location:       form.location || null,
           payment_method: form.payment_method,
           description:    form.description || null,
-          // Store as negative (expense convention)
           total_amount:   -Math.abs(parseFloat(form.total_amount)),
         });
       } else {
@@ -251,20 +272,37 @@ function DeleteDialog({ expense, onConfirm, onClose }) {
 
 // ─── Dashboard page ────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const [month, setMonth]   = useState(currentYM);
-  const [data, setData]     = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [methods, setMethods] = useState([]);
-  const [categories, setCats] = useState([]);
+  // Modo: 'month' (mês único) ou 'range' (período)
+  const [mode, setMode] = useState('month');
+
+  // Estado do mês único
+  const [month, setMonth] = useState(currentYM);
+
+  // Estado do período
+  const [rangeStart, setRangeStart] = useState(() => `${new Date().getFullYear()}-01`);
+  const [rangeEnd,   setRangeEnd]   = useState(currentYM);
+
+  // Dados e UI
+  const [data, setData]           = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [methods, setMethods]     = useState([]);
+  const [categories, setCats]     = useState([]);
+  const [catFilter, setCatFilter] = useState('');
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
   const [minMonth, setMinMonth] = useState('');
   const maxMonth = currentYM();
 
+  // Params para a API
+  const apiParams = mode === 'month'
+    ? { month }
+    : { start: rangeStart, end: rangeEnd };
+
   const loadDashboard = useCallback(() => {
     setLoading(true);
-    getDashboard(month).then((r) => setData(r.data)).finally(() => setLoading(false));
-  }, [month]);
+    getDashboard(apiParams).then((r) => setData(r.data)).finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, month, rangeStart, rangeEnd]);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
@@ -276,19 +314,37 @@ export default function Dashboard() {
     });
   }, []);
 
-  const handleSaved = () => { setEditingExpense(null); loadDashboard(); };
+  // Presets de período
+  const applyPreset = (label) => {
+    const now = currentYM();
+    if (label === '3m') { setRangeStart(shiftMonth(now, -2)); setRangeEnd(now); }
+    if (label === '6m') { setRangeStart(shiftMonth(now, -5)); setRangeEnd(now); }
+    if (label === 'ano') { setRangeStart(`${new Date().getFullYear()}-01`); setRangeEnd(now); }
+    setMode('range');
+  };
 
+  const handleSaved = () => { setEditingExpense(null); loadDashboard(); };
   const handleDeleteConfirm = async () => {
     await deleteGroup(deleteTarget.group_id);
     setDeleteTarget(null);
     loadDashboard();
   };
 
+  // Filtro de categoria (client-side, só afeta a tabela)
+  const allExpenses = data?.recent_expenses ?? [];
+  const filteredExpenses = catFilter
+    ? allExpenses.filter((e) => e.category === catFilter)
+    : allExpenses;
+
   if (loading || !data) {
     return <div className="text-center py-20 text-gray-400">Carregando...</div>;
   }
 
   const net = data.income - data.expense;
+  const isRange = mode === 'range';
+  const periodLabel = isRange
+    ? `${rangeStart.split('-').reverse().join('/')} – ${rangeEnd.split('-').reverse().join('/')}`
+    : month.split('-').reverse().join('/');
 
   return (
     <div className="space-y-6">
@@ -310,12 +366,48 @@ export default function Dashboard() {
         />
       )}
 
-      <div className="flex items-center justify-between">
+      {/* Header — modo + controles de período */}
+      <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <MonthNav value={month} onChange={setMonth} minMonth={minMonth} maxMonth={maxMonth} />
+
+        {/* Toggle Mês / Período */}
+        <div className="flex rounded border overflow-hidden text-sm">
+          <button
+            onClick={() => setMode('month')}
+            className={`px-3 py-1.5 transition-colors ${mode === 'month' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50 text-gray-700'}`}
+          >Mês</button>
+          <button
+            onClick={() => setMode('range')}
+            className={`px-3 py-1.5 border-l transition-colors ${mode === 'range' ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50 text-gray-700'}`}
+          >Período</button>
+        </div>
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {mode === 'month' ? (
+            <MonthNav value={month} onChange={setMonth} minMonth={minMonth} maxMonth={maxMonth} />
+          ) : (
+            <>
+              {/* Presets */}
+              {['3m','6m','ano'].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => applyPreset(p)}
+                  className="px-2.5 py-1 text-xs border rounded hover:bg-gray-50 text-gray-600"
+                >
+                  {p === '3m' ? 'Últimos 3 meses' : p === '6m' ? 'Últimos 6 meses' : 'Este ano'}
+                </button>
+              ))}
+              <span className="text-gray-300">|</span>
+              <label className="text-sm text-gray-600">De</label>
+              <MonthYearPicker value={rangeStart} onChange={setRangeStart} minMonth={minMonth} maxMonth={rangeEnd} />
+              <label className="text-sm text-gray-600">até</label>
+              <MonthYearPicker value={rangeEnd} onChange={setRangeEnd} minMonth={rangeStart} maxMonth={maxMonth} />
+            </>
+          )}
+        </div>
       </div>
 
-      {/* KPI cards — 4 cards: Receita, Despesa, Saldo mês, Saldo acumulado */}
+      {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl shadow p-5">
           <p className="text-sm text-gray-500">Receita</p>
@@ -326,7 +418,7 @@ export default function Dashboard() {
           <p className="text-2xl font-bold text-red-500 mt-1">{fmtCurrency(data.expense)}</p>
         </div>
         <div className="bg-white rounded-xl shadow p-5">
-          <p className="text-sm text-gray-500">Saldo do mês</p>
+          <p className="text-sm text-gray-500">{isRange ? 'Saldo do período' : 'Saldo do mês'}</p>
           <p className={`text-2xl font-bold mt-1 ${net >= 0 ? 'text-green-600' : 'text-red-500'}`}>
             {fmtCurrency(net)}
           </p>
@@ -336,13 +428,12 @@ export default function Dashboard() {
           <p className={`text-2xl font-bold mt-1 ${data.net_accumulated >= 0 ? 'text-green-600' : 'text-red-500'}`}>
             {fmtCurrency(data.net_accumulated)}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">Dinheiro acumulado até {month.split('-').reverse().join('/')}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Dinheiro acumulado até {periodLabel}</p>
         </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Bar: monthly evolution — two bars */}
         <div className="bg-white rounded-xl shadow p-5">
           <h2 className="font-semibold mb-4">Evolução mensal</h2>
           <ResponsiveContainer width="100%" height={220}>
@@ -357,7 +448,6 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* Pie: expenses by category */}
         <div className="bg-white rounded-xl shadow p-5">
           <h2 className="font-semibold mb-2">Por categoria (despesas)</h2>
           {data.by_category.length === 0 ? (
@@ -397,14 +487,33 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Expenses list — installment_number = 1 only */}
+      {/* Tabela de lançamentos com filtro de categoria */}
       <div className="bg-white rounded-xl shadow p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold">Lançamentos do mês</h2>
-          <span className="text-sm text-gray-400">{data.recent_expenses.length} compras</span>
+        <div className="flex flex-wrap items-center justify-between mb-4 gap-3">
+          <h2 className="font-semibold">
+            {isRange ? 'Lançamentos do período' : 'Lançamentos do mês'}
+          </h2>
+          <div className="flex items-center gap-2">
+            <select
+              value={catFilter}
+              onChange={(e) => setCatFilter(e.target.value)}
+              className="border rounded px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            >
+              <option value="">Todas as categorias</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+            <span className="text-sm text-gray-400 whitespace-nowrap">
+              {filteredExpenses.length} compra{filteredExpenses.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
-        {data.recent_expenses.length === 0 ? (
-          <p className="text-sm text-gray-400">Nenhum lançamento neste mês.</p>
+
+        {filteredExpenses.length === 0 ? (
+          <p className="text-sm text-gray-400">
+            {catFilter ? `Nenhum lançamento em "${catFilter}" neste período.` : 'Nenhum lançamento neste período.'}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <div className="max-h-[480px] overflow-y-auto">
@@ -421,7 +530,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.recent_expenses.map((e) => (
+                  {filteredExpenses.map((e) => (
                     <tr key={e.id} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="py-1.5 pr-4 whitespace-nowrap">{fmtDate(e.purchase_date)}</td>
                       <td className="py-1.5 pr-4">
