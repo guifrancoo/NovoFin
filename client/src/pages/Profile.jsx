@@ -1,11 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { updateProfile, getUsers, createUser, deleteUser } from '../api';
+import { updateProfile, getUsers, createUser, deleteUser, getMe } from '../api';
 
 export default function Profile() {
   const navigate = useNavigate();
   const currentUsername = localStorage.getItem('username') || '';
-  const isAdmin = localStorage.getItem('is_admin') === '1';
+
+  // isAdmin é lido do localStorage mas também refrescado do servidor no mount
+  const [isAdmin, setIsAdmin] = useState(localStorage.getItem('is_admin') === '1');
+
+  // Ao montar, busca is_admin do servidor para garantir que está correto
+  // (resolve tokens antigos que não tinham o campo)
+  useEffect(() => {
+    getMe().then((res) => {
+      const adminFromServer = res.data.is_admin === true;
+      console.log('[Profile] is_admin vindo do servidor:', adminFromServer,
+        '| localStorage antes:', localStorage.getItem('is_admin'));
+      localStorage.setItem('is_admin', adminFromServer ? '1' : '0');
+      setIsAdmin(adminFromServer);
+    }).catch((err) => {
+      console.warn('[Profile] Erro ao buscar /auth/me:', err.message);
+    });
+  }, []);
 
   // --- Profile form ---
   const [form, setForm] = useState({

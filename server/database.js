@@ -195,6 +195,8 @@ function initDatabase() {
   }
   // Ensure the admin user always has is_admin = 1 (idempotent)
   db.prepare("UPDATE users SET is_admin = 1 WHERE username = 'admin'").run();
+  const adminCheck = db.prepare("SELECT id, username, is_admin FROM users WHERE username = 'admin'").get();
+  console.log('[db] admin user state:', adminCheck);
 
   // Migrate: add user_id column to expenses (safe, idempotent)
   try { db.exec('ALTER TABLE expenses ADD COLUMN user_id INTEGER REFERENCES users(id)'); } catch (_) {}
