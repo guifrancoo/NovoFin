@@ -51,7 +51,12 @@ const distPath = path.join(__dirname, '..', 'client', 'dist');
 const distIndex = path.join(distPath, 'index.html');
 if (PROD || fs.existsSync(distIndex)) {
   app.use(express.static(distPath));
-  app.get('*', (_req, res) => res.sendFile(distIndex));
+  // Nunca faz cache do index.html — garante que o browser
+  // carregue o build mais recente (os assets JS/CSS têm hash no nome)
+  app.get('*', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.sendFile(distIndex);
+  });
 }
 
 app.use((err, _req, res, _next) => {

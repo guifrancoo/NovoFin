@@ -27,6 +27,8 @@ router.post('/login', (req, res) => {
 });
 
 // GET /api/auth/me  — verifica o token e retorna o usuário
+// Sempre consulta o banco para garantir is_admin correto,
+// mesmo em tokens antigos emitidos antes da coluna existir.
 router.get('/me', (req, res) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer '))
@@ -34,7 +36,9 @@ router.get('/me', (req, res) => {
 
   try {
     const payload = jwt.verify(auth.slice(7), process.env.JWT_SECRET);
-    res.json({ id: payload.id, username: payload.username, is_admin: payload.is_admin ?? false });
+    const user = db.prepare('SELECT id, username, is_admin FROM users WHERE id = ?').get(payload.id);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+    res.json({ id: user.id, username: user.username, is_admin: user.is_admin === 1 });
   } catch {
     res.status(401).json({ error: 'Token inválido ou expirado' });
   }
