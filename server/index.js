@@ -16,6 +16,7 @@ const paymentMethodsRouter = require('./routes/payment-methods');
 const categoriesRouter     = require('./routes/categories');
 const cutoffDatesRouter    = require('./routes/cutoff-dates');
 const subcategoriesRouter  = require('./routes/subcategories');
+const usersRouter          = require('./routes/users');
 const requireAuth          = require('./middleware/auth');
 
 const app  = express();
@@ -43,6 +44,7 @@ app.use('/api/payment-methods', requireAuth, paymentMethodsRouter);
 app.use('/api/categories',      requireAuth, categoriesRouter);
 app.use('/api/cutoff-dates',    requireAuth, cutoffDatesRouter);
 app.use('/api/subcategories',   requireAuth, subcategoriesRouter);
+app.use('/api/users',           requireAuth, usersRouter);
 
 // Servir frontend buildado (produção ou quando o dist existir)
 const distPath = path.join(__dirname, '..', 'client', 'dist');

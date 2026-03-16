@@ -3,9 +3,17 @@ const { db } = require('../database');
 
 const router = Router();
 
+// Returns SQL snippet and params for user filtering.
+// Admin sees all data; regular users see only their own.
+function userFilter(req) {
+  if (req.user.is_admin) return { sql: '', params: [] };
+  return { sql: ' AND user_id = ?', params: [req.user.id] };
+}
+
 // GET /api/dashboard?month=2026-03
 router.get('/', (req, res) => {
   const month = req.query.month || new Date().toISOString().slice(0, 7);
+  const uf = userFilter(req);
 
   // Income and expense for the selected month (excluding card-bill-payment category)
   const totalRow = db.prepare(`
@@ -15,20 +23,17 @@ router.get('/', (req, res) => {
     FROM expenses
     WHERE strftime('%Y-%m', purchase_date) = ?
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
-  `).get(month);
+      ${uf.sql}
+  `).get(month, ...uf.params);
 
   // Cash balance: sum of Dinheiro-only transactions up to end of selected month.
-  // The Excel SALDO column tracks only cash (Dinheiro) movements:
-  //   income (salary, etc.) = positive Dinheiro
-  //   cash expenses          = negative Dinheiro
-  //   card bill payments     = negative Dinheiro ("Pagamentos Cartões")
-  // Card purchases themselves do NOT move cash — they are excluded here.
   const accRow = db.prepare(`
     SELECT COALESCE(SUM(installment_amount), 0) AS net_accumulated
     FROM expenses
     WHERE payment_method = 'Dinheiro'
       AND strftime('%Y-%m', purchase_date) <= ?
-  `).get(month);
+      ${uf.sql}
+  `).get(month, ...uf.params);
 
   const byMethod = db.prepare(`
     SELECT payment_method,
@@ -37,9 +42,10 @@ router.get('/', (req, res) => {
     FROM expenses
     WHERE strftime('%Y-%m', purchase_date) = ?
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      ${uf.sql}
     GROUP BY payment_method
     ORDER BY expense DESC
-  `).all(month);
+  `).all(month, ...uf.params);
 
   // Only show expenses in the category pie (negative amounts), excluding card-bill-payment
   const byCategory = db.prepare(`
@@ -49,17 +55,19 @@ router.get('/', (req, res) => {
     WHERE strftime('%Y-%m', purchase_date) = ?
       AND installment_amount < 0
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      ${uf.sql}
     GROUP BY category
     ORDER BY total DESC
-  `).all(month);
+  `).all(month, ...uf.params);
 
   // Only show installment_number = 1 (purchase month row)
   const recent = db.prepare(`
     SELECT * FROM expenses
     WHERE strftime('%Y-%m', purchase_date) = ?
       AND installment_number = 1
+      ${uf.sql}
     ORDER BY purchase_date DESC, created_at DESC
-  `).all(month);
+  `).all(month, ...uf.params);
 
   const evolution = db.prepare(`
     SELECT strftime('%Y-%m', purchase_date) AS month,
@@ -69,9 +77,10 @@ router.get('/', (req, res) => {
     WHERE purchase_date >= date(?, '-5 months', 'start of month')
       AND purchase_date <  date(?, '+1 month',  'start of month')
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      ${uf.sql}
     GROUP BY month
     ORDER BY month
-  `).all(`${month}-01`, `${month}-01`);
+  `).all(`${month}-01`, `${month}-01`, ...uf.params);
 
   res.json({
     month,

@@ -183,13 +183,29 @@ function initDatabase() {
     );
   `);
 
+  // Migrate: add is_admin column to users (safe, idempotent)
+  try { db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
+
   // --- Seed default admin user (once) ---
   const existingAdmin = db.prepare('SELECT 1 FROM users WHERE username = ?').get('admin');
   if (!existingAdmin) {
     const hash = bcrypt.hashSync('financeiro123', 10);
-    db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run('admin', hash);
+    db.prepare('INSERT INTO users (username, password, is_admin) VALUES (?, ?, 1)').run('admin', hash);
     console.log('Default admin user created (admin / financeiro123)');
   }
+  // Ensure the admin user always has is_admin = 1 (idempotent)
+  db.prepare("UPDATE users SET is_admin = 1 WHERE username = 'admin'").run();
+
+  // Migrate: add user_id column to expenses (safe, idempotent)
+  try { db.exec('ALTER TABLE expenses ADD COLUMN user_id INTEGER REFERENCES users(id)'); } catch (_) {}
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id)'); } catch (_) {}
+
+  // Assign existing expenses without user_id to the admin user
+  db.prepare(`
+    UPDATE expenses
+    SET user_id = (SELECT id FROM users WHERE username = 'admin' LIMIT 1)
+    WHERE user_id IS NULL
+  `).run();
 
   console.log('Database initialised at', DB_PATH);
 }

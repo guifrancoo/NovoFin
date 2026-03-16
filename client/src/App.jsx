@@ -29,6 +29,7 @@ function Layout() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
+    localStorage.removeItem('is_admin');
     navigate('/login', { replace: true });
   };
 

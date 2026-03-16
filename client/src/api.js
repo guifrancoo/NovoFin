@@ -16,6 +16,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('username');
+      localStorage.removeItem('is_admin');
       window.location.href = '/login';
     }
     return Promise.reject(err);
@@ -26,6 +27,11 @@ api.interceptors.response.use(
 export const login         = (data) => api.post('/auth/login', data);
 export const getMe         = ()     => api.get('/auth/me');
 export const updateProfile = (data) => api.put('/auth/profile', data);
+
+// User management (admin only)
+export const getUsers    = ()     => api.get('/users');
+export const createUser  = (data) => api.post('/users', data);
+export const deleteUser  = (id)   => api.delete(`/users/${id}`);
 
 // Expenses
 export const getExpenses   = (params) => api.get('/expenses', { params });

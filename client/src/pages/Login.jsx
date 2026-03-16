@@ -18,6 +18,7 @@ export default function Login() {
       const res = await login(form);
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('username', res.data.username);
+      localStorage.setItem('is_admin', res.data.is_admin ? '1' : '0');
       navigate('/', { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao fazer login');

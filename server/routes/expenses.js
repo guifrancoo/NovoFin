@@ -25,11 +25,19 @@ function computeFirstDueDate(purchaseDateStr, methodName) {
   return addMonths(purchaseDateStr, day <= cutoff ? 1 : 2);
 }
 
+// Returns SQL snippet and params array for user filtering.
+// Admin sees all data; regular users see only their own.
+function userFilter(req) {
+  if (req.user.is_admin) return { sql: '', params: [] };
+  return { sql: ' AND user_id = ?', params: [req.user.id] };
+}
+
 // --- Routes ---
 
 // GET /api/expenses?month=2026-03&payment_method=TAM&category=Lazer
 router.get('/', (req, res) => {
   const { month, payment_method, category } = req.query;
+  const uf = userFilter(req);
   let sql = `SELECT * FROM expenses WHERE 1=1`;
   const params = [];
 
@@ -37,24 +45,29 @@ router.get('/', (req, res) => {
   if (payment_method) { sql += ` AND payment_method = ?`;               params.push(payment_method); }
   if (category)       { sql += ` AND category = ?`;                     params.push(category); }
 
+  sql += uf.sql;
+  params.push(...uf.params);
   sql += ` ORDER BY due_date ASC, group_id, installment_number`;
   res.json(db.prepare(sql).all(...params));
 });
 
 // GET /api/expenses/date-range — min and max purchase_date months in the DB
 router.get('/date-range', (req, res) => {
+  const uf = userFilter(req);
   const row = db.prepare(`
     SELECT
       strftime('%Y-%m', MIN(purchase_date)) AS min_month,
       strftime('%Y-%m', MAX(purchase_date)) AS max_month
     FROM expenses
-  `).get();
+    WHERE 1=1${uf.sql}
+  `).get(...uf.params);
   res.json(row || { min_month: null, max_month: null });
 });
 
 // GET /api/expenses/:id
 router.get('/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
+  const uf = userFilter(req);
+  const row = db.prepare(`SELECT * FROM expenses WHERE id = ?${uf.sql}`).get(req.params.id, ...uf.params);
   if (!row) return res.status(404).json({ error: 'Not found' });
   res.json(row);
 });
@@ -99,15 +112,15 @@ router.post('/', (req, res) => {
   const insert = db.prepare(`
     INSERT INTO expenses
       (group_id, purchase_date, due_date, category, subcategory, location, payment_method,
-       description, total_amount, installments, installment_number, installment_amount)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       description, total_amount, installments, installment_number, installment_amount, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   for (let i = 0; i < numInstallments; i++) {
     insert.run(
       group_id, purchase_date, addMonths(firstDueDate, i),
       category, subcategory || null, location || null, payment_method, description || null,
-      finalAmount, numInstallments, i + 1, installmentAmount
+      finalAmount, numInstallments, i + 1, installmentAmount, req.user.id
     );
   }
 
@@ -120,9 +133,10 @@ router.post('/', (req, res) => {
 
 // PATCH /api/expenses/group/:group_id – update all installments, recalculate due_dates
 router.patch('/group/:group_id', (req, res) => {
+  const uf = userFilter(req);
   const rows = db.prepare(
-    'SELECT * FROM expenses WHERE group_id = ? ORDER BY installment_number'
-  ).all(req.params.group_id);
+    `SELECT * FROM expenses WHERE group_id = ?${uf.sql} ORDER BY installment_number`
+  ).all(req.params.group_id, ...uf.params);
 
   if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
 
@@ -177,7 +191,8 @@ router.patch('/group/:group_id', (req, res) => {
 
 // PATCH /api/expenses/:id  – update a single row
 router.patch('/:id', (req, res) => {
-  const existing = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id);
+  const uf = userFilter(req);
+  const existing = db.prepare(`SELECT * FROM expenses WHERE id = ?${uf.sql}`).get(req.params.id, ...uf.params);
   if (!existing) return res.status(404).json({ error: 'Not found' });
 
   const merged = {
@@ -212,14 +227,16 @@ router.patch('/:id', (req, res) => {
 
 // DELETE /api/expenses/group/:group_id
 router.delete('/group/:group_id', (req, res) => {
-  const info = db.prepare('DELETE FROM expenses WHERE group_id = ?').run(req.params.group_id);
+  const uf = userFilter(req);
+  const info = db.prepare(`DELETE FROM expenses WHERE group_id = ?${uf.sql}`).run(req.params.group_id, ...uf.params);
   if (info.changes === 0) return res.status(404).json({ error: 'Not found' });
   res.json({ deleted: info.changes });
 });
 
 // DELETE /api/expenses/:id
 router.delete('/:id', (req, res) => {
-  const info = db.prepare('DELETE FROM expenses WHERE id = ?').run(req.params.id);
+  const uf = userFilter(req);
+  const info = db.prepare(`DELETE FROM expenses WHERE id = ?${uf.sql}`).run(req.params.id, ...uf.params);
   if (info.changes === 0) return res.status(404).json({ error: 'Not found' });
   res.json({ deleted: info.changes });
 });

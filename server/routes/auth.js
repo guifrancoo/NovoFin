@@ -16,13 +16,14 @@ router.post('/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password))
     return res.status(401).json({ error: 'Usuário ou senha incorretos' });
 
+  const isAdmin = user.is_admin === 1;
   const token = jwt.sign(
-    { id: user.id, username: user.username },
+    { id: user.id, username: user.username, is_admin: isAdmin },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 
-  res.json({ token, username: user.username });
+  res.json({ token, username: user.username, is_admin: isAdmin });
 });
 
 // GET /api/auth/me  — verifica o token e retorna o usuário
@@ -33,7 +34,7 @@ router.get('/me', (req, res) => {
 
   try {
     const payload = jwt.verify(auth.slice(7), process.env.JWT_SECRET);
-    res.json({ id: payload.id, username: payload.username });
+    res.json({ id: payload.id, username: payload.username, is_admin: payload.is_admin ?? false });
   } catch {
     res.status(401).json({ error: 'Token inválido ou expirado' });
   }
@@ -69,13 +70,14 @@ router.put('/profile', requireAuth, (req, res) => {
     .run(updatedUsername, updatedPassword, user.id);
 
   // Emite novo token com o username atualizado
+  const isAdmin = user.is_admin === 1;
   const token = jwt.sign(
-    { id: user.id, username: updatedUsername },
+    { id: user.id, username: updatedUsername, is_admin: isAdmin },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 
-  res.json({ token, username: updatedUsername });
+  res.json({ token, username: updatedUsername, is_admin: isAdmin });
 });
 
 module.exports = router;
