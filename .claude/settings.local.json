@@ -73,7 +73,8 @@
       "Bash(taskkill:*)",
       "Bash(cmd /c \"taskkill /PID 2972 /F\")",
       "Bash(cmd /c \"taskkill /PID 2972 /F 2>&1\")",
-      "Bash(powershell -Command \"Stop-Process -Id 2972 -Force -ErrorAction SilentlyContinue; Write-Host 'done'\")"
+      "Bash(powershell -Command \"Stop-Process -Id 2972 -Force -ErrorAction SilentlyContinue; Write-Host 'done'\")",
+      "Bash(find:*)"
     ]
   }
 }
