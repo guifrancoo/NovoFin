@@ -9,11 +9,11 @@ import Login       from './pages/Login';
 import Profile     from './pages/Profile';
 
 const NAV = [
-  { to: '/',              label: 'Dashboard' },
-  { to: '/novo',          label: 'Lançamentos' },
-  { to: '/faturas',       label: 'Faturas' },
-  { to: '/relatorios',    label: 'Relatórios' },
-  { to: '/configuracoes', label: 'Configurações' },
+  { to: '/',              label: '📊 Dashboard' },
+  { to: '/novo',          label: '➕ Lançamentos' },
+  { to: '/faturas',       label: '💳 Faturas' },
+  { to: '/relatorios',    label: '📈 Relatórios' },
+  { to: '/configuracoes', label: '⚙️ Configurações' },
 ];
 
 function RequireAuth({ children }) {
@@ -65,13 +65,13 @@ function Layout() {
                 }`
               }
             >
-              {username}
+              👤 {username}
             </NavLink>
             <button
               onClick={handleLogout}
               className="text-blue-100 hover:bg-white/10 hover:text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
             >
-              Sair
+              🚪 Sair
             </button>
           </div>
         </div>
