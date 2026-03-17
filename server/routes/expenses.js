@@ -14,7 +14,10 @@ function addMonths(dateStr, n) {
 
 function computeFirstDueDate(purchaseDateStr, methodName) {
   const method = db.prepare('SELECT * FROM payment_methods WHERE name = ?').get(methodName);
-  if (!method || !method.is_card) return purchaseDateStr;
+  if (!method || !method.is_card) {
+    console.log(`[due_date] ${methodName} não é cartão → due_date = purchase_date (${purchaseDateStr})`);
+    return purchaseDateStr;
+  }
 
   const [year, month, day] = purchaseDateStr.split('-').map(Number);
   const cutoffRow = db.prepare(
@@ -23,7 +26,12 @@ function computeFirstDueDate(purchaseDateStr, methodName) {
 
   // Regra: compra ATÉ o corte → fatura do mesmo mês (0); APÓS o corte → fatura do mês seguinte (+1)
   const cutoff = cutoffRow ? cutoffRow.cutoff_day : 25;
-  return addMonths(purchaseDateStr, day <= cutoff ? 0 : 1);
+  const n = day <= cutoff ? 0 : 1;
+  const dueDate = addMonths(purchaseDateStr, n);
+
+  console.log(`[due_date] purchase=${purchaseDateStr} method=${methodName}(id=${method.id}) cutoff_row=${JSON.stringify(cutoffRow)} cutoff=${cutoff} day=${day} n=${n} → due_date=${dueDate}`);
+
+  return dueDate;
 }
 
 // Returns SQL snippet and params array for user filtering.
