@@ -358,9 +358,9 @@ function CutoffDatesSection() {
       title="Datas de Corte dos Cartões"
       description={
         <>
-          Define o dia de corte por cartão e mês. Compras até o corte vão para a fatura do mês seguinte;
-          compras após o corte vão para dois meses à frente.{' '}
-          <strong>Padrão: dia 25</strong> quando não configurado.
+          Define o dia de corte por cartão e mês. Compras até o dia de corte vão para a fatura do{' '}
+          <strong>mesmo mês</strong>; compras após o corte vão para a fatura do{' '}
+          <strong>mês seguinte</strong>. <strong>Padrão: dia 25</strong> quando não configurado.
         </>
       }
     >
@@ -438,15 +438,12 @@ function CutoffDatesSection() {
                   {cutoffs.map((c) => {
                     const cutMonth = `${MONTH_NAMES[c.month - 1]} ${c.year}`;
                     const nextM    = c.month === 12 ? `Jan ${c.year + 1}` : `${MONTH_NAMES[c.month]} ${c.year}`;
-                    const next2M   = c.month >= 11
-                      ? `${MONTH_NAMES[(c.month + 1) % 12]} ${c.month >= 11 ? c.year + 1 : c.year}`
-                      : `${MONTH_NAMES[c.month + 1]} ${c.year}`;
                     return (
                       <tr key={c.id} className="border-b last:border-0 hover:bg-gray-50">
                         <td className="py-2 pr-6 font-medium">{cutMonth}</td>
                         <td className="py-2 pr-6">dia {c.cutoff_day}</td>
-                        <td className="py-2 pr-6 text-green-700">Fatura de {nextM}</td>
-                        <td className="py-2 pr-6 text-blue-700">Fatura de {next2M}</td>
+                        <td className="py-2 pr-6 text-green-700">Fatura de {cutMonth}</td>
+                        <td className="py-2 pr-6 text-blue-700">Fatura de {nextM}</td>
                         <td className="py-2">
                           <button
                             onClick={() => remove(c.id)}
