@@ -4,7 +4,7 @@ const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
 const fs      = require('fs');
-const { initDatabase, DB_PATH } = require('./database');
+const { initDatabase, DB_PATH, db } = require('./database');
 
 const authRouter           = require('./routes/auth');
 const adminRouter          = require('./routes/admin');
@@ -82,4 +82,24 @@ console.log('===========================');
 // ─────────────────────────────────────────────────────────────────────────────
 
 initDatabase();
+
+// ── Diagnóstico pós-init: conta registros para confirmar que o volume foi lido ─
+console.log('=== POST-INIT DIAGNOSTICS ===');
+try {
+  const expensesCount = db.prepare('SELECT COUNT(*) AS n FROM expenses').get().n;
+  const usersCount    = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+  const dbSizePost    = fs.existsSync(DB_PATH) ? fs.statSync(DB_PATH).size : 0;
+  console.log('DB_PATH        :', DB_PATH);
+  console.log('DB size (post) :', dbSizePost ? `${(dbSizePost / 1024 / 1024).toFixed(2)} MB (${dbSizePost} bytes)` : 'n/a');
+  console.log('expenses count :', expensesCount);
+  console.log('users count    :', usersCount);
+  if (expensesCount === 0) {
+    console.warn('AVISO: tabela expenses vazia — volume pode não estar montado ou banco é novo.');
+  }
+} catch (e) {
+  console.error('Erro no diagnóstico pós-init:', e.message);
+}
+console.log('=============================');
+// ─────────────────────────────────────────────────────────────────────────────
+
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

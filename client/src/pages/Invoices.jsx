@@ -151,7 +151,7 @@ export default function Invoices() {
   const [data, setData]                 = useState(null);
   const [loading, setLoading]           = useState(false);
   const [expanded, setExpanded]         = useState({});
-  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
   const [editingExpense, setEditingExpense] = useState(null);
   const [methods, setMethods]           = useState([]);
   const [categories, setCats]           = useState([]);
@@ -182,8 +182,8 @@ export default function Invoices() {
     Object.values(data).flatMap((mm) => Object.keys(mm).map((m) => m.split('-')[0]))
   )].sort((a, b) => b - a); // most recent first
 
-  // Default to most recent year with data
-  const activeYear = selectedYear || allYears[0] || '';
+  // Default para o ano atual; cai para o mais recente com dados se o atual não existir
+  const activeYear = (selectedYear && allYears.includes(selectedYear)) ? selectedYear : (allYears[0] || '');
 
   const hasAny = Object.values(data).some((mm) => Object.keys(mm).length > 0);
 
