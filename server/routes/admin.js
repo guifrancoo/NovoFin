@@ -1,13 +1,9 @@
 const { Router } = require('express');
 const path = require('path');
 const fs   = require('fs');
-const { reopenDatabase, initDatabase } = require('../database');
+const { reopenDatabase, initDatabase, DB_PATH } = require('../database');
 
 const router = Router();
-
-const DB_PATH = process.env.NODE_ENV === 'production'
-  ? '/app/server/data/financeiro.db'
-  : path.join(__dirname, '..', 'financeiro.db');
 
 // POST /api/admin/restore-db
 // Header obrigatório: x-admin-key: <ADMIN_KEY do .env>
@@ -171,23 +167,31 @@ router.post('/import-json', (req, res) => {
 
   const { db } = require('../database');
 
+  // Log de diagnóstico: mostra qual arquivo está sendo usado
+  const fileBefore = fs.existsSync(DB_PATH) ? fs.statSync(DB_PATH).size : null;
+  console.log('[admin] import-json iniciado');
+  console.log('[admin] NODE_ENV  :', process.env.NODE_ENV || 'development');
+  console.log('[admin] DB_PATH   :', DB_PATH);
+  console.log('[admin] file size antes:', fileBefore != null ? `${fileBefore} bytes` : 'arquivo não existe');
+
   // Ordem respeita dependências de FK: primeiro pais, depois filhos
-  const tables = ['expenses', 'cutoff_dates', 'subcategories', 'categories', 'payment_methods', 'users'];
+  // DELETE e INSERT ficam dentro da mesma transaction para garantir atomicidade:
+  // se qualquer INSERT falhar, o ROLLBACK restaura os dados anteriores.
+  const deleteOrder = ['expenses', 'cutoff_dates', 'subcategories', 'categories', 'payment_methods', 'users'];
+  const insertOrder = ['categories', 'payment_methods', 'subcategories', 'cutoff_dates', 'expenses', 'users'];
+
+  const counts = {};
 
   try {
     db.exec('PRAGMA foreign_keys = OFF');
-
-    // Limpa todas as tabelas na ordem inversa de dependência
-    for (const table of tables) {
-      db.exec(`DELETE FROM ${table}`);
-    }
-
-    const counts = {};
-
     db.exec('BEGIN TRANSACTION');
     try {
+      // Limpa na ordem inversa de dependência (dentro da transaction)
+      for (const table of deleteOrder) {
+        db.exec(`DELETE FROM ${table}`);
+      }
+
       // Reimporta na ordem correta (pais antes de filhos)
-      const insertOrder = ['categories', 'payment_methods', 'subcategories', 'cutoff_dates', 'expenses', 'users'];
       for (const table of insertOrder) {
         const rows = payload[table];
         if (!Array.isArray(rows) || rows.length === 0) {
@@ -213,7 +217,26 @@ router.post('/import-json', (req, res) => {
 
     db.exec('PRAGMA foreign_keys = ON');
 
-    res.json({ ok: true, counts });
+    // Verifica o arquivo após o commit
+    const fileAfter   = fs.existsSync(DB_PATH) ? fs.statSync(DB_PATH).size : null;
+    const fileExistsAfter = fs.existsSync(DB_PATH);
+    console.log('[admin] import-json concluído com sucesso');
+    console.log('[admin] file size depois:', fileAfter != null ? `${fileAfter} bytes` : 'ARQUIVO NÃO ENCONTRADO');
+    if (!fileExistsAfter) {
+      console.error('[admin] ALERTA: arquivo do banco não encontrado em', DB_PATH, '— volume pode não estar montado!');
+    }
+
+    res.json({
+      ok: true,
+      counts,
+      diagnostics: {
+        node_env:          process.env.NODE_ENV || 'development',
+        db_path:           DB_PATH,
+        file_size_before:  fileBefore,
+        file_size_after:   fileAfter,
+        file_exists_after: fileExistsAfter,
+      },
+    });
   } catch (err) {
     db.exec('PRAGMA foreign_keys = ON');
     console.error('[admin] erro no import-json:', err.message);
