@@ -202,6 +202,9 @@ function initDatabase() {
   try { db.exec('ALTER TABLE expenses ADD COLUMN user_id INTEGER REFERENCES users(id)'); } catch (_) {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id)'); } catch (_) {}
 
+  // Migrate: add is_international column to expenses (safe, idempotent)
+  try { db.exec('ALTER TABLE expenses ADD COLUMN is_international INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
+
   // Assign existing expenses without user_id to the admin user
   db.prepare(`
     UPDATE expenses

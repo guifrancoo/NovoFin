@@ -84,6 +84,7 @@ router.post('/', (req, res) => {
     total_amount,
     installments = 1,
     type = 'despesa', // 'despesa' | 'receita'
+    is_international = 0,
   } = req.body;
 
   if (!purchase_date || !category || !payment_method || total_amount == null) {
@@ -109,18 +110,20 @@ router.post('/', (req, res) => {
   const group_id          = randomUUID();
   const firstDueDate      = computeFirstDueDate(purchase_date, payment_method);
 
+  const intl = is_international ? 1 : 0;
+
   const insert = db.prepare(`
     INSERT INTO expenses
       (group_id, purchase_date, due_date, category, subcategory, location, payment_method,
-       description, total_amount, installments, installment_number, installment_amount, user_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       description, total_amount, installments, installment_number, installment_amount, user_id, is_international)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   for (let i = 0; i < numInstallments; i++) {
     insert.run(
       group_id, purchase_date, addMonths(firstDueDate, i),
       category, subcategory || null, location || null, payment_method, description || null,
-      finalAmount, numInstallments, i + 1, installmentAmount, req.user.id
+      finalAmount, numInstallments, i + 1, installmentAmount, req.user.id, intl
     );
   }
 
@@ -142,13 +145,14 @@ router.patch('/group/:group_id', (req, res) => {
 
   const first = rows[0];
   const merged = {
-    purchase_date:  req.body.purchase_date  ?? first.purchase_date,
-    category:       req.body.category       ?? first.category,
-    subcategory:    req.body.subcategory !== undefined ? (req.body.subcategory || null) : first.subcategory,
-    location:       req.body.location !== undefined ? (req.body.location || null) : first.location,
-    payment_method: req.body.payment_method ?? first.payment_method,
-    description:    req.body.description !== undefined ? (req.body.description || null) : first.description,
-    total_amount:   req.body.total_amount != null ? parseFloat(req.body.total_amount) : first.total_amount,
+    purchase_date:    req.body.purchase_date  ?? first.purchase_date,
+    category:         req.body.category       ?? first.category,
+    subcategory:      req.body.subcategory !== undefined ? (req.body.subcategory || null) : first.subcategory,
+    location:         req.body.location !== undefined ? (req.body.location || null) : first.location,
+    payment_method:   req.body.payment_method ?? first.payment_method,
+    description:      req.body.description !== undefined ? (req.body.description || null) : first.description,
+    total_amount:     req.body.total_amount != null ? parseFloat(req.body.total_amount) : first.total_amount,
+    is_international: req.body.is_international !== undefined ? (req.body.is_international ? 1 : 0) : (first.is_international ?? 0),
   };
 
   const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ?').get(merged.category);
@@ -163,7 +167,7 @@ router.patch('/group/:group_id', (req, res) => {
   const update = db.prepare(`
     UPDATE expenses
     SET purchase_date = ?, due_date = ?, category = ?, subcategory = ?, location = ?,
-        payment_method = ?, description = ?, total_amount = ?, installment_amount = ?
+        payment_method = ?, description = ?, total_amount = ?, installment_amount = ?, is_international = ?
     WHERE id = ?
   `);
 
@@ -178,6 +182,7 @@ router.patch('/group/:group_id', (req, res) => {
       merged.description,
       merged.total_amount,
       installmentAmount,
+      merged.is_international,
       rows[i].id
     );
   }
@@ -203,6 +208,7 @@ router.patch('/:id', (req, res) => {
     payment_method:     req.body.payment_method     ?? existing.payment_method,
     description:        req.body.description        !== undefined ? (req.body.description || null) : existing.description,
     installment_amount: req.body.installment_amount != null ? parseFloat(req.body.installment_amount) : existing.installment_amount,
+    is_international:   req.body.is_international !== undefined ? (req.body.is_international ? 1 : 0) : (existing.is_international ?? 0),
   };
 
   const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ?').get(merged.category);
@@ -214,11 +220,11 @@ router.patch('/:id', (req, res) => {
   db.prepare(`
     UPDATE expenses
     SET purchase_date = ?, category = ?, subcategory = ?, location = ?,
-        payment_method = ?, description = ?, installment_amount = ?
+        payment_method = ?, description = ?, installment_amount = ?, is_international = ?
     WHERE id = ?
   `).run(
     merged.purchase_date, merged.category, merged.subcategory, merged.location,
-    merged.payment_method, merged.description, merged.installment_amount,
+    merged.payment_method, merged.description, merged.installment_amount, merged.is_international,
     req.params.id
   );
 

@@ -1,22 +1,177 @@
 import React, { useEffect, useState } from 'react';
-import { getInvoices, fmtCurrency, fmtDate } from '../api';
+import {
+  getInvoices, getPaymentMethods, getCategories,
+  updateExpense, updateGroup, fmtCurrency, fmtDate,
+} from '../api';
 
 const CARD_COLORS = { TAM: 'bg-blue-600', 'Outro Cartão': 'bg-purple-600' };
 
-export default function Invoices() {
-  const [data, setData]         = useState(null);
-  const [loading, setLoading]   = useState(false);
-  const [expanded, setExpanded] = useState({});
-  const [selectedYear, setSelectedYear] = useState('');
+// ─── Edit Modal ────────────────────────────────────────────────────────────────
+function EditModal({ expense, methods, categories, onSave, onClose }) {
+  const isGroup = expense.installments > 1;
 
-  useEffect(() => {
+  const [form, setForm] = useState({
+    purchase_date:      expense.purchase_date,
+    category:           expense.category,
+    subcategory:        expense.subcategory || '',
+    location:           expense.location || '',
+    payment_method:     expense.payment_method,
+    description:        expense.description || '',
+    total_amount:       String(Math.abs(expense.total_amount)),
+    installment_amount: String(Math.abs(expense.installment_amount)),
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState('');
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleSave = async () => {
+    setError('');
+    setSaving(true);
+    try {
+      if (isGroup) {
+        await updateGroup(expense.group_id, {
+          purchase_date:  form.purchase_date,
+          category:       form.category,
+          subcategory:    form.subcategory || null,
+          location:       form.location || null,
+          payment_method: form.payment_method,
+          description:    form.description || null,
+          total_amount:   -Math.abs(parseFloat(form.total_amount)),
+        });
+      } else {
+        await updateExpense(expense.id, {
+          purchase_date:      form.purchase_date,
+          category:           form.category,
+          subcategory:        form.subcategory || null,
+          location:           form.location || null,
+          payment_method:     form.payment_method,
+          description:        form.description || null,
+          installment_amount: -Math.abs(parseFloat(form.installment_amount)),
+        });
+      }
+      onSave();
+    } catch (e) {
+      setError(e.response?.data?.error || 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="px-5 py-4 border-b flex items-center justify-between">
+          <h2 className="font-semibold">Editar lançamento</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+        </div>
+
+        <div className="px-5 py-4 space-y-3">
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</p>}
+
+          {isGroup && (
+            <p className="text-xs text-amber-700 bg-amber-50 rounded px-3 py-2">
+              Compra parcelada em <strong>{expense.installments}x</strong> — todas as parcelas serão atualizadas.
+            </p>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Data da compra</label>
+              <input type="date" value={form.purchase_date} onChange={set('purchase_date')}
+                className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
+            </div>
+            <div>
+              {isGroup ? (
+                <>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Total (R$)</label>
+                  <input type="number" step="0.01" min="0.01" value={form.total_amount} onChange={set('total_amount')}
+                    className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                </>
+              ) : (
+                <>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Valor (R$)</label>
+                  <input type="number" step="0.01" min="0.01" value={form.installment_amount} onChange={set('installment_amount')}
+                    className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                </>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Categoria</label>
+            <select value={form.category} onChange={set('category')}
+              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+              {categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Subcategoria (opcional)</label>
+            <input type="text" value={form.subcategory} onChange={set('subcategory')} placeholder="Subcategoria..."
+              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Local</label>
+            <input type="text" value={form.location} onChange={set('location')} placeholder="Estabelecimento..."
+              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Método de pagamento</label>
+            <select value={form.payment_method} onChange={set('payment_method')}
+              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400">
+              {methods.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Descrição</label>
+            <input type="text" value={form.description} onChange={set('description')} placeholder="Observações..."
+              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
+          </div>
+        </div>
+
+        <div className="px-5 py-4 border-t flex justify-end gap-2">
+          <button onClick={onClose}
+            className="px-4 py-2 rounded border text-sm hover:bg-gray-50">Cancelar</button>
+          <button onClick={handleSave} disabled={saving}
+            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-50">
+            {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Invoices page ─────────────────────────────────────────────────────────────
+export default function Invoices() {
+  const [data, setData]                 = useState(null);
+  const [loading, setLoading]           = useState(false);
+  const [expanded, setExpanded]         = useState({});
+  const [selectedYear, setSelectedYear] = useState('');
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [methods, setMethods]           = useState([]);
+  const [categories, setCats]           = useState([]);
+
+  const loadInvoices = () => {
     setLoading(true);
     getInvoices()
       .then((r) => setData(r.data))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadInvoices();
+    getPaymentMethods().then((r) => setMethods(r.data));
+    getCategories().then((r) => setCats(r.data));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggle = (key) => setExpanded((p) => ({ ...p, [key]: !p[key] }));
+  const handleSaved = () => { setEditingExpense(null); loadInvoices(); };
 
   if (loading || !data) {
     return <div className="text-center py-20 text-gray-400">Carregando...</div>;
@@ -34,6 +189,16 @@ export default function Invoices() {
 
   return (
     <div className="space-y-6">
+      {editingExpense && (
+        <EditModal
+          expense={editingExpense}
+          methods={methods}
+          categories={categories}
+          onSave={handleSaved}
+          onClose={() => setEditingExpense(null)}
+        />
+      )}
+
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Faturas</h1>
 
@@ -113,20 +278,31 @@ export default function Invoices() {
                               <th className="pb-1 pr-4">Categoria</th>
                               <th className="pb-1 pr-4">Local</th>
                               <th className="pb-1 pr-4">Parcela</th>
-                              <th className="pb-1 text-right">Valor</th>
+                              <th className="pb-1 text-right pr-4">Valor</th>
+                              <th className="pb-1"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {info.expenses.map((e) => (
-                              <tr key={e.id} className="border-b last:border-0 hover:bg-gray-50">
+                              <tr key={e.id} className={`border-b last:border-0 ${e.is_international ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50'}`}>
                                 <td className="py-1.5 pr-4">{fmtDate(e.due_date)}</td>
                                 <td className="py-1.5 pr-4">{e.category}</td>
-                                <td className="py-1.5 pr-4 text-gray-500">{e.location || '—'}</td>
+                                <td className="py-1.5 pr-4 text-gray-500">
+                                  {e.is_international ? <span className="mr-1">🌍</span> : null}
+                                  {e.location || '—'}
+                                </td>
                                 <td className="py-1.5 pr-4 text-gray-500">
                                   {e.installments > 1 ? `${e.installment_number}/${e.installments}` : '—'}
                                 </td>
-                                <td className="py-1.5 text-right font-medium">
+                                <td className="py-1.5 pr-4 text-right font-medium">
                                   {fmtCurrency(Math.abs(e.installment_amount))}
+                                </td>
+                                <td className="py-1.5 whitespace-nowrap">
+                                  <button
+                                    onClick={() => setEditingExpense(e)}
+                                    className="text-gray-400 hover:text-blue-600 px-1 transition-colors"
+                                    title="Editar"
+                                  >✏️</button>
                                 </td>
                               </tr>
                             ))}

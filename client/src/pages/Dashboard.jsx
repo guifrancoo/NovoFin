@@ -531,7 +531,7 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {filteredExpenses.map((e) => (
-                    <tr key={e.id} className="border-b last:border-0 hover:bg-gray-50">
+                    <tr key={e.id} className={`border-b last:border-0 ${e.is_international ? 'bg-yellow-50 hover:bg-yellow-100' : 'hover:bg-gray-50'}`}>
                       <td className="py-1.5 pr-4 whitespace-nowrap">{fmtDate(e.purchase_date)}</td>
                       <td className="py-1.5 pr-4">
                         {e.category}
@@ -539,7 +539,10 @@ export default function Dashboard() {
                           <span className="text-gray-400 text-xs"> › {e.subcategory}</span>
                         )}
                       </td>
-                      <td className="py-1.5 pr-4 text-gray-500">{e.location || '—'}</td>
+                      <td className="py-1.5 pr-4 text-gray-500">
+                        {e.is_international ? <span className="mr-1">🌍</span> : null}
+                        {e.location || '—'}
+                      </td>
                       <td className="py-1.5 pr-4">
                         <span className="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">
                           {e.payment_method}

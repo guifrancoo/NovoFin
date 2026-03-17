@@ -9,14 +9,15 @@ function localToday() {
 }
 
 const INITIAL = {
-  purchase_date:  localToday(),
-  category:       '',
-  subcategory:    '',
-  location:       '',
-  payment_method: '',
-  description:    '',
-  total_amount:   '',
-  installments:   '1',
+  purchase_date:    localToday(),
+  category:         '',
+  subcategory:      '',
+  location:         '',
+  payment_method:   '',
+  description:      '',
+  total_amount:     '',
+  installments:     '1',
+  is_international: false,
 };
 
 export default function NewExpense() {
@@ -61,7 +62,7 @@ export default function NewExpense() {
   const filteredMethods = methods;
 
   const selectedMethod = methods.find((m) => m.name === form.payment_method);
-  const isCard = selectedMethod?.is_card;
+  const isCard = selectedMethod?.is_card === 1;
 
   const preview = () => {
     const amt  = parseFloat(form.total_amount);
@@ -79,9 +80,10 @@ export default function NewExpense() {
       const res = await createExpense({
         ...form,
         type,
-        subcategory:  form.subcategory || null,
-        total_amount: parseFloat(form.total_amount),
-        installments: isReceita ? 1 : (parseInt(form.installments, 10) || 1),
+        subcategory:      form.subcategory || null,
+        total_amount:     parseFloat(form.total_amount),
+        installments:     isReceita ? 1 : (parseInt(form.installments, 10) || 1),
+        is_international: !isReceita && form.is_international ? 1 : 0,
       });
       setSuccess(res.data);
       setForm(INITIAL);
@@ -229,6 +231,24 @@ export default function NewExpense() {
             </p>
           )}
         </div>
+
+        {/* Compra Internacional (só para despesas) */}
+        {!isReceita && (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, is_international: !f.is_international }))}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
+                form.is_international ? 'bg-amber-400' : 'bg-gray-200'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                form.is_international ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+            <span className="text-sm font-medium text-gray-700">🌍 Compra Internacional</span>
+          </div>
+        )}
 
         {/* Amount + installments (installments hidden for receita) */}
         <div className={isReceita ? '' : 'grid grid-cols-2 gap-4'}>
