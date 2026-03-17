@@ -16,7 +16,13 @@ router.post('/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password))
     return res.status(401).json({ error: 'Usuário ou senha incorretos' });
 
-  const isAdmin = user.is_admin === 1;
+  // Busca is_admin do banco após validar a senha — garante valor atualizado
+  // mesmo que o SELECT anterior tenha retornado um valor defasado
+  const freshRow = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(user.id);
+  const isAdmin  = freshRow ? freshRow.is_admin === 1 : false;
+
+  console.log(`[auth] login: user="${user.username}" id=${user.id} is_admin_db=${freshRow?.is_admin} isAdmin=${isAdmin}`);
+
   const token = jwt.sign(
     { id: user.id, username: user.username, is_admin: isAdmin },
     process.env.JWT_SECRET,

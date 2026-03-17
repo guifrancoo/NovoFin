@@ -5,7 +5,11 @@ const api = axios.create({ baseURL: '/api' });
 // Injeta o token em todas as requisições
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  } else {
+    console.warn('[api] requisição sem token:', config.method?.toUpperCase(), config.url);
+  }
   return config;
 });
 
@@ -14,6 +18,7 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
+      console.error('[api] 401 recebido em', err.config?.url, '— limpando sessão');
       localStorage.removeItem('token');
       localStorage.removeItem('username');
       localStorage.removeItem('is_admin');

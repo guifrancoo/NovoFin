@@ -16,11 +16,27 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await login(form);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('username', res.data.username);
-      localStorage.setItem('is_admin', res.data.is_admin ? '1' : '0');
+      const { token, username, is_admin } = res.data;
+
+      console.log('[login] resposta recebida:', {
+        token:    token ? `${token.slice(0, 20)}...(${token.length} chars)` : 'AUSENTE',
+        username,
+        is_admin,
+      });
+
+      localStorage.setItem('token',    token);
+      localStorage.setItem('username', username);
+      localStorage.setItem('is_admin', is_admin ? '1' : '0');
+
+      console.log('[login] localStorage após salvar:', {
+        token:    localStorage.getItem('token') ? 'OK' : 'FALHOU',
+        username: localStorage.getItem('username'),
+        is_admin: localStorage.getItem('is_admin'),
+      });
+
       navigate('/', { replace: true });
     } catch (err) {
+      console.error('[login] erro:', err.response?.data || err.message);
       setError(err.response?.data?.error || 'Erro ao fazer login');
     } finally {
       setLoading(false);
