@@ -21,8 +21,9 @@ function computeFirstDueDate(purchaseDateStr, methodName) {
     'SELECT cutoff_day FROM cutoff_dates WHERE payment_method_id = ? AND year = ? AND month = ?'
   ).get(method.id, year, month);
 
+  // Regra: compra ATÉ o corte → fatura do mesmo mês (0); APÓS o corte → fatura do mês seguinte (+1)
   const cutoff = cutoffRow ? cutoffRow.cutoff_day : 25;
-  return addMonths(purchaseDateStr, day <= cutoff ? 1 : 2);
+  return addMonths(purchaseDateStr, day <= cutoff ? 0 : 1);
 }
 
 // Returns SQL snippet and params array for user filtering.
