@@ -244,6 +244,36 @@ router.post('/import-json', (req, res) => {
   }
 });
 
+// GET /api/admin/export-json
+// Header obrigatório: x-admin-key: <ADMIN_KEY do .env>
+// Retorna JSON com todos os registros de todas as tabelas
+router.get('/export-json', (req, res) => {
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey)
+    return res.status(500).json({ error: 'ADMIN_KEY não configurada no servidor' });
+
+  if (req.headers['x-admin-key'] !== adminKey)
+    return res.status(401).json({ error: 'Chave de admin inválida' });
+
+  const { db } = require('../database');
+
+  try {
+    const tables = ['categories', 'subcategories', 'payment_methods', 'cutoff_dates', 'expenses', 'users'];
+    const result = {};
+
+    for (const table of tables) {
+      result[table] = db.prepare(`SELECT * FROM ${table}`).all();
+      console.log(`[admin] export-json: ${table} — ${result[table].length} registros`);
+    }
+
+    console.log('[admin] export-json concluído com sucesso');
+    res.json(result);
+  } catch (err) {
+    console.error('[admin] erro no export-json:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/admin/reset-password
 // Body: { username, new_password }
 router.post('/reset-password', (req, res) => {
