@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
   getInvoices, getPaymentMethods, getCategories,
-  updateExpense, updateGroup, fmtCurrency, fmtDate,
+  createExpense, updateExpense, updateGroup, deleteGroup, fmtCurrency, fmtDate,
 } from '../api';
 
 const CARD_COLORS = { TAM: 'bg-blue-600', 'Outro Cartão': 'bg-purple-600' };
 
 // ─── Edit Modal ────────────────────────────────────────────────────────────────
 function EditModal({ expense, methods, categories, onSave, onClose }) {
-  const isGroup = expense.installments > 1;
+  const isGroup  = expense.installments > 1;
+  const isIncome = expense.total_amount > 0;
 
   const [form, setForm] = useState({
     purchase_date:      expense.purchase_date,
@@ -19,17 +20,36 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
     description:        expense.description || '',
     total_amount:       String(Math.abs(expense.total_amount)),
     installment_amount: String(Math.abs(expense.installment_amount)),
+    installments:       String(expense.installments || 1),
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  const newInstallments     = Math.max(1, parseInt(form.installments, 10) || 1);
+  const installmentsChanged = newInstallments !== (expense.installments || 1);
+  const showTotal           = isGroup || newInstallments > 1;
+
   const handleSave = async () => {
     setError('');
     setSaving(true);
     try {
-      if (isGroup) {
+      if (installmentsChanged) {
+        await deleteGroup(expense.group_id);
+        await createExpense({
+          purchase_date:    form.purchase_date,
+          category:         form.category,
+          subcategory:      form.subcategory || null,
+          location:         form.location || null,
+          payment_method:   form.payment_method,
+          description:      form.description || null,
+          total_amount:     Math.abs(parseFloat(form.total_amount)),
+          installments:     newInstallments,
+          type:             isIncome ? 'receita' : 'despesa',
+          is_international: expense.is_international || 0,
+        });
+      } else if (isGroup) {
         await updateGroup(expense.group_id, {
           purchase_date:  form.purchase_date,
           category:       form.category,
@@ -37,7 +57,7 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
           location:       form.location || null,
           payment_method: form.payment_method,
           description:    form.description || null,
-          total_amount:   -Math.abs(parseFloat(form.total_amount)),
+          total_amount:   isIncome ? Math.abs(parseFloat(form.total_amount)) : -Math.abs(parseFloat(form.total_amount)),
         });
       } else {
         await updateExpense(expense.id, {
@@ -47,7 +67,7 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
           location:           form.location || null,
           payment_method:     form.payment_method,
           description:        form.description || null,
-          installment_amount: -Math.abs(parseFloat(form.installment_amount)),
+          installment_amount: isIncome ? Math.abs(parseFloat(form.installment_amount)) : -Math.abs(parseFloat(form.installment_amount)),
         });
       }
       onSave();
@@ -69,11 +89,15 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
         <div className="px-5 py-4 space-y-3">
           {error && <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</p>}
 
-          {isGroup && (
+          {installmentsChanged ? (
+            <p className="text-xs text-amber-700 bg-amber-50 rounded px-3 py-2">
+              Alterar parcelas irá recriar todos os vencimentos deste grupo.
+            </p>
+          ) : isGroup ? (
             <p className="text-xs text-amber-700 bg-amber-50 rounded px-3 py-2">
               Compra parcelada em <strong>{expense.installments}x</strong> — todas as parcelas serão atualizadas.
             </p>
-          )}
+          ) : null}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -82,21 +106,31 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
                 className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
             </div>
             <div>
-              {isGroup ? (
-                <>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Total (R$)</label>
-                  <input type="number" step="0.01" min="0.01" value={form.total_amount} onChange={set('total_amount')}
-                    className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
-                </>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                {showTotal ? 'Total (R$)' : 'Valor (R$)'}
+              </label>
+              {showTotal ? (
+                <input type="number" step="0.01" min="0.01" value={form.total_amount} onChange={set('total_amount')}
+                  className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
               ) : (
-                <>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Valor (R$)</label>
-                  <input type="number" step="0.01" min="0.01" value={form.installment_amount} onChange={set('installment_amount')}
-                    className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
-                </>
+                <input type="number" step="0.01" min="0.01" value={form.installment_amount} onChange={set('installment_amount')}
+                  className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
               )}
             </div>
           </div>
+
+          {!isIncome && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Parcelas</label>
+              <input type="number" min="1" max="48" value={form.installments} onChange={set('installments')}
+                className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              {newInstallments > 1 && (
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Cada parcela: {fmtCurrency(Math.abs(parseFloat(form.total_amount) / newInstallments))}
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Categoria</label>
