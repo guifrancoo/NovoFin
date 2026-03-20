@@ -74,7 +74,9 @@
       "Bash(cmd /c \"taskkill /PID 2972 /F\")",
       "Bash(cmd /c \"taskkill /PID 2972 /F 2>&1\")",
       "Bash(powershell -Command \"Stop-Process -Id 2972 -Force -ErrorAction SilentlyContinue; Write-Host 'done'\")",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(node --experimental-sqlite reprocess-due-dates.js)",
+      "Bash(node --experimental-sqlite restore-from-railway.js)"
     ]
   }
 }
