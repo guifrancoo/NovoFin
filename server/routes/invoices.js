@@ -5,7 +5,6 @@ const router = Router();
 
 // Returns SQL snippet and params for user filtering.
 function userFilter(req) {
-  if (req.user.is_admin) return { sql: '', params: [] };
   return { sql: ' AND user_id = ?', params: [req.user.id] };
 }
 

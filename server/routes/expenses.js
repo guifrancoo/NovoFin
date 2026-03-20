@@ -35,9 +35,7 @@ function computeFirstDueDate(purchaseDateStr, methodName) {
 }
 
 // Returns SQL snippet and params array for user filtering.
-// Admin sees all data; regular users see only their own.
 function userFilter(req) {
-  if (req.user.is_admin) return { sql: '', params: [] };
   return { sql: ' AND user_id = ?', params: [req.user.id] };
 }
 
