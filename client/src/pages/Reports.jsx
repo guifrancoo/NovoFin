@@ -7,9 +7,9 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from 'recharts';
 
-const COLORS = [
-  '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6',
-  '#ec4899','#14b8a6','#f97316','#6366f1','#84cc16','#06b6d4','#a855f7',
+const CAT_COLORS = [
+  '#3498db','#e67e22','#9b59b6','#1abc9c','#e74c3c',
+  '#f39c12','#27ae60','#e84393','#2980b9','#7f8c8d','#16a085','#95a5a6',
 ];
 
 const MONTH_LABELS = [
@@ -22,33 +22,49 @@ function currentYM() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+const inputCls = 'border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-navy/20 transition-colors';
+
 function MonthYearPicker({ value, onChange, minMonth, maxMonth }) {
   const [year, month] = value.split('-').map(Number);
   const minY = minMonth ? Number(minMonth.split('-')[0]) : 2016;
   const maxY = maxMonth ? Number(maxMonth.split('-')[0]) : new Date().getFullYear();
   const years = [];
   for (let y = minY; y <= maxY; y++) years.push(y);
-
   return (
     <div className="flex items-center gap-1">
-      <select
-        value={month}
+      <select value={month}
         onChange={(e) => onChange(`${year}-${String(e.target.value).padStart(2, '0')}`)}
-        className="border rounded px-2 py-1 text-sm"
-      >
-        {MONTH_LABELS.map((label, i) => (
-          <option key={i + 1} value={i + 1}>{label}</option>
-        ))}
+        className={inputCls}>
+        {MONTH_LABELS.map((l, i) => <option key={i + 1} value={i + 1}>{l}</option>)}
       </select>
-      <select
-        value={year}
+      <select value={year}
         onChange={(e) => onChange(`${e.target.value}-${String(month).padStart(2, '0')}`)}
-        className="border rounded px-2 py-1 text-sm"
-      >
-        {years.map((y) => (
-          <option key={y} value={y}>{y}</option>
-        ))}
+        className={inputCls}>
+        {years.map((y) => <option key={y} value={y}>{y}</option>)}
       </select>
+    </div>
+  );
+}
+
+// ─── Tooltip customizado ───────────────────────────────────────────────────────
+function CustomTooltip({ active, payload, grandTotal }) {
+  if (!active || !payload?.length) return null;
+  const { category, total } = payload[0].payload;
+  const pct = grandTotal > 0 ? ((total / grandTotal) * 100).toFixed(1) : '0.0';
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 shadow-sm text-xs">
+      <div className="font-medium text-navy mb-1">{category}</div>
+      <div className="text-gray-600">{fmtCurrency(total)} <span className="text-gray-400">({pct}%)</span></div>
+    </div>
+  );
+}
+
+function MonthTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 shadow-sm text-xs">
+      <div className="font-medium text-navy mb-1">{label}</div>
+      <div className="text-gray-600">{fmtCurrency(payload[0].value)}</div>
     </div>
   );
 }
@@ -56,20 +72,16 @@ function MonthYearPicker({ value, onChange, minMonth, maxMonth }) {
 export default function Reports() {
   const [minMonth, setMinMonth] = useState('2016-01');
   const maxMonth = currentYM();
-  // Default: janeiro do ano atual até mês atual
   const [start, setStart] = useState(() => `${new Date().getFullYear()}-01`);
-  const [end,   setEnd]   = useState(currentYM);
+  const [end, setEnd]     = useState(currentYM);
   const [byCategory, setByCategory] = useState([]);
-  const [byMonth,    setByMonth]    = useState([]);
-  const [byMethod,   setByMethod]   = useState([]);
+  const [byMonth, setByMonth]       = useState([]);
+  const [byMethod, setByMethod]     = useState([]);
   const [loading, setLoading]       = useState(false);
   const [expanded, setExpanded]     = useState({});
 
   useEffect(() => {
-    getDateRange().then((r) => {
-      if (r.data.min_month) setMinMonth(r.data.min_month);
-      // não altera `start` — mantém o default de jan/ano-atual
-    });
+    getDateRange().then((r) => { if (r.data.min_month) setMinMonth(r.data.min_month); });
   }, []);
 
   useEffect(() => {
@@ -87,128 +99,120 @@ export default function Reports() {
     }).finally(() => setLoading(false));
   }, [start, end]);
 
-  const grandTotal = byCategory.reduce((s, r) => s + r.total, 0);
-
-  const toggleCat = (cat) => setExpanded((p) => ({ ...p, [cat]: !p[cat] }));
-
-  // Dynamic chart height: at least 200px, 32px per category row
-  const barChartHeight = Math.max(200, byCategory.length * 32);
+  const grandTotal   = byCategory.reduce((s, r) => s + r.total, 0);
+  const toggleCat    = (cat) => setExpanded((p) => ({ ...p, [cat]: !p[cat] }));
+  const barChartH    = Math.max(220, byCategory.length * 34);
+  const methodTotal  = byMethod.reduce((s, r) => s + r.total, 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-2xl font-bold">Relatórios</h1>
-        <div className="flex items-center gap-2 ml-auto flex-wrap">
-          <label className="text-sm text-gray-600">De</label>
-          <MonthYearPicker value={start} onChange={setStart} minMonth={minMonth} maxMonth={maxMonth} />
-          <label className="text-sm text-gray-600">até</label>
-          <MonthYearPicker value={end} onChange={setEnd} minMonth={minMonth} maxMonth={maxMonth} />
-        </div>
-      </div>
+    <div className="p-4 md:px-5 md:py-4 space-y-4">
 
-      {loading && <div className="text-center py-10 text-gray-400">Carregando...</div>}
+      {/* Filtro de período */}
+      <div className="bg-white rounded-xl border border-gray-100 px-5 py-3.5 flex items-center gap-3 flex-wrap">
+        <span className="text-xs font-medium text-gray-500">Período</span>
+        <span className="text-xs text-gray-400">De</span>
+        <MonthYearPicker value={start} onChange={setStart} minMonth={minMonth} maxMonth={maxMonth} />
+        <span className="text-xs text-gray-400">até</span>
+        <MonthYearPicker value={end} onChange={setEnd} minMonth={minMonth} maxMonth={maxMonth} />
+        {loading && <span className="text-xs text-gray-400 animate-pulse ml-2">Carregando...</span>}
+      </div>
 
       {!loading && (
         <>
-          {/* By category — horizontal bar chart + table side by side */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {/* Horizontal bar chart */}
-            <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-semibold mb-4">Distribuição por Categoria</h2>
-              {byCategory.length === 0 ? (
-                <p className="text-sm text-gray-400">Sem dados</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={barChartHeight}>
-                  <BarChart
-                    layout="vertical"
-                    data={byCategory}
-                    margin={{ top: 0, right: 80, left: 0, bottom: 0 }}
-                  >
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: 10 }}
-                      tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="category"
-                      tick={{ fontSize: 11 }}
-                      width={130}
-                    />
-                    <Tooltip
-                      formatter={(v, _name, props) => {
-                        const pct = grandTotal > 0 ? ((v / grandTotal) * 100).toFixed(1) : '0.0';
-                        return [`${fmtCurrency(v)} (${pct}%)`, 'Total'];
-                      }}
-                    />
-                    <Bar dataKey="total" radius={[0, 4, 4, 0]}>
-                      {byCategory.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
-                      <LabelList
-                        dataKey="total"
-                        position="right"
-                        formatter={(v) => {
-                          const pct = grandTotal > 0 ? ((v / grandTotal) * 100).toFixed(0) : '0';
-                          return `${pct}%`;
-                        }}
-                        style={{ fontSize: 10, fill: '#6b7280' }}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
+          {/* Gráfico horizontal + tabela por categoria */}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+
+            {/* Gráfico de barras horizontal */}
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-gray-100">
+                <span className="text-sm font-semibold text-navy">Distribuição por categoria</span>
+              </div>
+              <div className="px-4 py-4">
+                {byCategory.length === 0 ? (
+                  <div className="h-40 flex items-center justify-center text-sm text-gray-400">Sem dados</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={barChartH}>
+                    <BarChart layout="vertical" data={byCategory}
+                      margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
+                      <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false}
+                        tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                      <YAxis type="category" dataKey="category" tick={{ fontSize: 11, fill: '#374151' }}
+                        width={140} axisLine={false} tickLine={false} />
+                      <Tooltip content={<CustomTooltip grandTotal={grandTotal} />} />
+                      <Bar dataKey="total" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                        {byCategory.map((_, i) => (
+                          <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]} />
+                        ))}
+                        <LabelList dataKey="total" position="right"
+                          formatter={(v) => {
+                            const pct = grandTotal > 0 ? ((v / grandTotal) * 100).toFixed(0) : '0';
+                            return `${pct}%`;
+                          }}
+                          style={{ fontSize: 10, fill: '#9ca3af' }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </div>
 
-            {/* Category table with % and expandable subcategories */}
-            <div className="bg-white rounded-xl shadow p-5">
-              <h2 className="font-semibold mb-4">Por Categoria</h2>
-              {byCategory.length === 0 ? (
-                <p className="text-sm text-gray-400">Sem dados</p>
-              ) : (
-                <div className="overflow-y-auto max-h-[520px]">
-                  <table className="min-w-full text-sm">
-                    <thead className="sticky top-0 bg-white">
-                      <tr className="text-left text-gray-500 border-b">
-                        <th className="pb-2 pr-2">Categoria</th>
-                        <th className="pb-2 pr-2 text-right">Total</th>
-                        <th className="pb-2 text-right">%</th>
+            {/* Tabela por categoria */}
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden flex flex-col">
+              <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+                <span className="text-sm font-semibold text-navy">Por categoria</span>
+                <span className="text-xs text-gray-400">{byCategory.length} categorias</span>
+              </div>
+              <div className="overflow-y-auto flex-1" style={{ maxHeight: barChartH + 32 }}>
+                {byCategory.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-gray-400">Sem dados</div>
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="sticky top-0 bg-white border-b border-gray-100">
+                        <th className="text-left text-xs font-medium text-gray-400 px-5 py-2.5 uppercase tracking-wide">Categoria</th>
+                        <th className="text-right text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide">Total</th>
+                        <th className="text-right text-xs font-medium text-gray-400 px-5 py-2.5 uppercase tracking-wide">%</th>
                       </tr>
                     </thead>
                     <tbody>
                       {byCategory.map((r, i) => {
                         const pct = grandTotal > 0 ? ((r.total / grandTotal) * 100).toFixed(1) : '0.0';
                         const hasSubcats = r.subcategories?.length > 0;
+                        const isOpen = expanded[r.category];
+                        const color = CAT_COLORS[i % CAT_COLORS.length];
                         return (
                           <React.Fragment key={r.category}>
                             <tr
-                              className={`border-b hover:bg-gray-50 ${hasSubcats ? 'cursor-pointer' : ''}`}
-                              onClick={() => hasSubcats && toggleCat(r.category)}
-                            >
-                              <td className="py-2 pr-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                    style={{ background: COLORS[i % COLORS.length] }} />
-                                  <span>{r.category}</span>
+                              className={`border-b border-gray-50 transition-colors ${hasSubcats ? 'cursor-pointer hover:bg-gray-50/60' : 'hover:bg-gray-50/40'}`}
+                              onClick={() => hasSubcats && toggleCat(r.category)}>
+                              <td className="px-5 py-3">
+                                <div className="flex items-center gap-2.5">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                                  <span className="text-sm text-gray-700">{r.category}</span>
                                   {hasSubcats && (
-                                    <span className="text-gray-400 text-xs ml-auto">
-                                      {expanded[r.category] ? '▲' : '▼'}
-                                    </span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                      stroke="#9ca3af" strokeWidth="2"
+                                      className={`ml-auto transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                                      <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
                                   )}
                                 </div>
                               </td>
-                              <td className="py-2 pr-2 text-right font-medium">{fmtCurrency(r.total)}</td>
-                              <td className="py-2 text-right text-gray-500">{pct}%</td>
+                              <td className="px-3 py-3 text-right text-sm font-medium text-navy whitespace-nowrap">{fmtCurrency(r.total)}</td>
+                              <td className="px-5 py-3 text-right text-xs text-gray-500">{pct}%</td>
                             </tr>
-                            {expanded[r.category] && r.subcategories.map((s) => {
+                            {isOpen && r.subcategories.map((s) => {
                               const sPct = r.total > 0 ? ((s.total / r.total) * 100).toFixed(1) : '0.0';
                               return (
-                                <tr key={s.subcategory} className="border-b bg-gray-50">
-                                  <td className="py-1.5 pr-2 pl-7 text-gray-500 text-xs">
-                                    › {s.subcategory}
+                                <tr key={s.subcategory} className="border-b border-gray-50 bg-gray-50/40">
+                                  <td className="px-5 py-2 pl-12">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-1 h-1 rounded-full bg-gray-300" />
+                                      <span className="text-xs text-gray-500">{s.subcategory}</span>
+                                    </div>
                                   </td>
-                                  <td className="py-1.5 pr-2 text-right text-xs">{fmtCurrency(s.total)}</td>
-                                  <td className="py-1.5 text-right text-gray-400 text-xs">{sPct}%</td>
+                                  <td className="px-3 py-2 text-right text-xs text-gray-600">{fmtCurrency(s.total)}</td>
+                                  <td className="px-5 py-2 text-right text-xs text-gray-400">{sPct}%</td>
                                 </tr>
                               );
                             })}
@@ -217,50 +221,69 @@ export default function Reports() {
                       })}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t font-semibold bg-gray-50">
-                        <td className="pt-2 pr-2">Total</td>
-                        <td className="pt-2 pr-2 text-right">{fmtCurrency(grandTotal)}</td>
-                        <td className="pt-2 text-right">100%</td>
+                      <tr className="border-t border-gray-200 bg-gray-50/50">
+                        <td className="px-5 py-3 text-sm font-semibold text-navy">Total</td>
+                        <td className="px-3 py-3 text-right text-sm font-semibold text-navy">{fmtCurrency(grandTotal)}</td>
+                        <td className="px-5 py-3 text-right text-xs text-gray-500">100%</td>
                       </tr>
                     </tfoot>
                   </table>
-                </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Gastos por mês */}
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-gray-100">
+              <span className="text-sm font-semibold text-navy">Gastos por mês</span>
+            </div>
+            <div className="px-4 py-4">
+              {byMonth.length === 0 ? (
+                <div className="h-36 flex items-center justify-center text-sm text-gray-400">Sem dados</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={byMonth} margin={{ top: 0, right: 8, left: -10, bottom: 0 }} barCategoryGap="30%">
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false}
+                      tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip content={<MonthTooltip />} />
+                    <Bar dataKey="total" fill="#185FA5" radius={[3, 3, 0, 0]} maxBarSize={36} />
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </div>
           </div>
 
-          {/* By month */}
-          <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="font-semibold mb-4">Gastos por Mês</h2>
-            {byMonth.length === 0 ? (
-              <p className="text-sm text-gray-400">Sem dados</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={byMonth} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v/1000).toFixed(1)}k`} />
-                  <Tooltip formatter={(v) => fmtCurrency(v)} />
-                  <Bar dataKey="total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-
-          {/* By payment method */}
-          <div className="bg-white rounded-xl shadow p-5">
-            <h2 className="font-semibold mb-4">Por Método de Pagamento</h2>
-            <div className="flex flex-wrap gap-6">
-              {byMethod.map((r, i) => (
-                <div key={r.payment_method} className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-                  <div>
-                    <p className="text-sm font-medium">{r.payment_method}</p>
-                    <p className="text-lg font-bold">{fmtCurrency(r.total)}</p>
-                    <p className="text-xs text-gray-400">{r.count} lançamento(s)</p>
-                  </div>
+          {/* Por método de pagamento */}
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-gray-100">
+              <span className="text-sm font-semibold text-navy">Por método de pagamento</span>
+            </div>
+            <div className="p-5">
+              {byMethod.length === 0 ? (
+                <div className="text-sm text-gray-400">Sem dados</div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {byMethod.map((r, i) => {
+                    const color = CAT_COLORS[i % CAT_COLORS.length];
+                    const pct = methodTotal > 0 ? ((r.total / methodTotal) * 100).toFixed(1) : '0.0';
+                    return (
+                      <div key={r.payment_method} className="bg-gray-50/60 rounded-xl p-4 border border-gray-100">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                          <span className="text-xs font-medium text-gray-600 truncate">{r.payment_method}</span>
+                        </div>
+                        <div className="text-lg font-semibold text-navy mb-1">{fmtCurrency(r.total)}</div>
+                        <div className="text-xs text-gray-400">{r.count} lançamento{r.count !== 1 ? 's' : ''} · {pct}%</div>
+                        <div className="mt-3 h-1 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-              {byMethod.length === 0 && <p className="text-sm text-gray-400">Sem dados</p>}
+              )}
             </div>
           </div>
         </>

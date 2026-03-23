@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const bcrypt = require('bcryptjs');
 const { db } = require('../database');
+const { generateLinkCode, getUser } = require('../database/whatsapp');
 
 const router = Router();
 
@@ -54,6 +55,29 @@ router.delete('/:id', requireAdmin, (req, res) => {
 
   db.prepare('DELETE FROM users WHERE id = ?').run(targetId);
   res.json({ deleted: true });
+});
+
+// POST /api/users/whatsapp/link-code — generates a 6-digit code to link WhatsApp
+router.post('/whatsapp/link-code', (req, res) => {
+  const code   = generateLinkCode(req.user.id);
+  const linked = getUser
+    ? db.prepare('SELECT phone_number FROM whatsapp_users WHERE user_id = ?').get(req.user.id)
+    : null;
+  res.json({ code, linked_phone: linked?.phone_number || null });
+});
+
+// GET /api/users/whatsapp/status — returns current WhatsApp link status
+router.get('/whatsapp/status', (req, res) => {
+  const linked = db.prepare(
+    'SELECT phone_number, created_at FROM whatsapp_users WHERE user_id = ?'
+  ).get(req.user.id);
+  res.json({ linked: !!linked, phone_number: linked?.phone_number || null });
+});
+
+// DELETE /api/users/whatsapp/unlink — unlinks the WhatsApp number
+router.delete('/whatsapp/unlink', (req, res) => {
+  db.prepare('DELETE FROM whatsapp_users WHERE user_id = ?').run(req.user.id);
+  res.json({ unlinked: true });
 });
 
 module.exports = router;

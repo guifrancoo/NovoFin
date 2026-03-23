@@ -17,7 +17,9 @@ const categoriesRouter     = require('./routes/categories');
 const cutoffDatesRouter    = require('./routes/cutoff-dates');
 const subcategoriesRouter  = require('./routes/subcategories');
 const usersRouter          = require('./routes/users');
+const whatsappRouter       = require('./routes/whatsapp');
 const requireAuth          = require('./middleware/auth');
+const { initWhatsappTables } = require('./database/whatsapp');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -31,8 +33,9 @@ if (!PROD) {
 app.use(express.json({ limit: '100mb' }));
 
 // Rotas públicas
-app.use('/api/auth',  authRouter);
-app.use('/api/admin', adminRouter);
+app.use('/api/auth',      authRouter);
+app.use('/api/admin',     adminRouter);
+app.use('/api/whatsapp',  whatsappRouter);
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // Rotas protegidas
@@ -82,6 +85,7 @@ console.log('===========================');
 // ─────────────────────────────────────────────────────────────────────────────
 
 initDatabase();
+initWhatsappTables();
 
 // ── Diagnóstico pós-init: conta registros para confirmar que o volume foi lido ─
 console.log('=== POST-INIT DIAGNOSTICS ===');

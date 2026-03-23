@@ -2,28 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { updateProfile, getUsers, createUser, deleteUser, getMe } from '../api';
 
+const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-colors';
+const labelCls = 'block text-xs font-medium text-gray-500 mb-1';
+
 export default function Profile() {
   const navigate = useNavigate();
   const currentUsername = localStorage.getItem('username') || '';
-
-  // isAdmin é lido do localStorage mas também refrescado do servidor no mount
   const [isAdmin, setIsAdmin] = useState(localStorage.getItem('is_admin') === '1');
 
-  // Ao montar, busca is_admin do servidor para garantir que está correto
-  // (resolve tokens antigos que não tinham o campo)
   useEffect(() => {
     getMe().then((res) => {
       const adminFromServer = res.data.is_admin === true;
-      console.log('[Profile] is_admin vindo do servidor:', adminFromServer,
-        '| localStorage antes:', localStorage.getItem('is_admin'));
       localStorage.setItem('is_admin', adminFromServer ? '1' : '0');
       setIsAdmin(adminFromServer);
-    }).catch((err) => {
-      console.warn('[Profile] Erro ao buscar /auth/me:', err.message);
-    });
+    }).catch(() => {});
   }, []);
 
-  // --- Profile form ---
+  // ── Perfil ─────────────────────────────────────────────────────────────────
   const [form, setForm] = useState({
     new_username:     currentUsername,
     current_password: '',
@@ -38,31 +33,20 @@ export default function Profile() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (form.new_password && form.new_password !== form.confirm_password) {
-      setError('A nova senha e a confirmação não coincidem.');
-      return;
-    }
-    if (form.new_password && form.new_password.length < 6) {
-      setError('A nova senha deve ter pelo menos 6 caracteres.');
-      return;
-    }
-
+    setError(''); setSuccess('');
+    if (form.new_password && form.new_password !== form.confirm_password)
+      return setError('A nova senha e a confirmação não coincidem.');
+    if (form.new_password && form.new_password.length < 6)
+      return setError('A nova senha deve ter pelo menos 6 caracteres.');
     setSaving(true);
     try {
       const payload = { current_password: form.current_password };
-      if (form.new_username.trim() !== currentUsername)
-        payload.new_username = form.new_username.trim();
-      if (form.new_password)
-        payload.new_password = form.new_password;
-
+      if (form.new_username.trim() !== currentUsername) payload.new_username = form.new_username.trim();
+      if (form.new_password) payload.new_password = form.new_password;
       const res = await updateProfile(payload);
       localStorage.setItem('token',    res.data.token);
       localStorage.setItem('username', res.data.username);
       localStorage.setItem('is_admin', res.data.is_admin ? '1' : '0');
-
       setSuccess('Dados atualizados com sucesso!');
       setForm((f) => ({ ...f, current_password: '', new_password: '', confirm_password: '' }));
     } catch (err) {
@@ -72,35 +56,25 @@ export default function Profile() {
     }
   };
 
-  // --- User management (admin only) ---
-  const [users, setUsers]           = useState([]);
+  // ── Usuários (admin) ───────────────────────────────────────────────────────
+  const [users, setUsers]             = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
-  const [newUser, setNewUser]       = useState({ username: '', password: '' });
-  const [userError, setUserError]   = useState('');
+  const [newUser, setNewUser]         = useState({ username: '', password: '' });
+  const [userError, setUserError]     = useState('');
   const [userSuccess, setUserSuccess] = useState('');
   const [creatingUser, setCreatingUser] = useState(false);
 
-  useEffect(() => {
-    if (isAdmin) loadUsers();
-  }, [isAdmin]);
+  useEffect(() => { if (isAdmin) loadUsers(); }, [isAdmin]);
 
   const loadUsers = async () => {
     setUsersLoading(true);
-    try {
-      const res = await getUsers();
-      setUsers(res.data);
-    } catch {
-      // silently ignore
-    } finally {
-      setUsersLoading(false);
-    }
+    try { const res = await getUsers(); setUsers(res.data); }
+    catch {} finally { setUsersLoading(false); }
   };
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
-    setUserError('');
-    setUserSuccess('');
-    setCreatingUser(true);
+    setUserError(''); setUserSuccess(''); setCreatingUser(true);
     try {
       await createUser(newUser);
       setUserSuccess(`Usuário "${newUser.username}" criado com sucesso!`);
@@ -108,13 +82,11 @@ export default function Profile() {
       loadUsers();
     } catch (err) {
       setUserError(err.response?.data?.error || 'Erro ao criar usuário.');
-    } finally {
-      setCreatingUser(false);
-    }
+    } finally { setCreatingUser(false); }
   };
 
   const handleDeleteUser = async (user) => {
-    if (!confirm(`Excluir o usuário "${user.username}"? Os lançamentos dele não serão removidos.`)) return;
+    if (!confirm(`Excluir o usuário "${user.username}"? Os lançamentos não serão removidos.`)) return;
     try {
       await deleteUser(user.id);
       setUserSuccess(`Usuário "${user.username}" removido.`);
@@ -124,139 +96,139 @@ export default function Profile() {
     }
   };
 
+  const initials = currentUsername.charAt(0).toUpperCase();
+
   return (
-    <div className="max-w-md mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">Minha Conta</h1>
+    <div className="p-4 md:px-5 md:py-4">
+      <div className="max-w-lg mx-auto space-y-4">
 
-      {/* Profile form */}
-      <div className="bg-white rounded-xl shadow p-6">
-        <form onSubmit={handleSave} className="space-y-4">
-          {error   && <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{error}</p>}
-          {success && <p className="text-sm text-green-700 bg-green-50 rounded px-3 py-2">{success}</p>}
-
+        {/* Avatar + nome */}
+        <div className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-4">
+          <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-semibold shrink-0"
+            style={{ background: '#1a1a2e' }}>
+            {initials}
+          </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome de usuário</label>
-            <input
-              type="text" value={form.new_username} onChange={set('new_username')}
-              required autoComplete="username"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
+            <div className="text-base font-semibold text-navy">{currentUsername}</div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              {isAdmin
+                ? <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">Administrador</span>
+                : <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Usuário</span>}
+            </div>
           </div>
+        </div>
 
-          <hr className="my-2" />
-          <p className="text-xs text-gray-500">Preencha os campos abaixo para alterar a senha. Deixe em branco para manter a senha atual.</p>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Senha atual <span className="text-red-500">*</span></label>
-            <input
-              type="password" value={form.current_password} onChange={set('current_password')}
-              required autoComplete="current-password"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
+        {/* Formulário de perfil */}
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <div className="text-sm font-semibold text-navy">Editar perfil</div>
           </div>
+          <form onSubmit={handleSave} className="p-5 space-y-4">
+            {error   && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+            {success && <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">{success}</p>}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nova senha</label>
-            <input
-              type="password" value={form.new_password} onChange={set('new_password')}
-              autoComplete="new-password" placeholder="Deixe em branco para não alterar"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
-          </div>
+            <div>
+              <label className={labelCls}>Nome de usuário</label>
+              <input type="text" value={form.new_username} onChange={set('new_username')}
+                required autoComplete="username" className={inputCls} />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar nova senha</label>
-            <input
-              type="password" value={form.confirm_password} onChange={set('confirm_password')}
-              autoComplete="new-password" placeholder="Repita a nova senha"
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button" onClick={() => navigate(-1)}
-              className="px-4 py-2 rounded border text-sm hover:bg-gray-50"
-            >Cancelar</button>
-            <button
-              type="submit" disabled={saving}
-              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm disabled:opacity-50"
-            >
-              {saving ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* User management — admin only */}
-      {isAdmin && (
-        <div className="bg-white rounded-xl shadow p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-gray-800">Usuários</h2>
-
-          {userError   && <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">{userError}</p>}
-          {userSuccess && <p className="text-sm text-green-700 bg-green-50 rounded px-3 py-2">{userSuccess}</p>}
-
-          {/* User list */}
-          <div className="space-y-2">
-            {usersLoading ? (
-              <p className="text-sm text-gray-400">Carregando...</p>
-            ) : users.map((u) => (
-              <div key={u.id} className="flex items-center justify-between border rounded px-3 py-2 text-sm">
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-xs text-gray-400 mb-3">Preencha para alterar a senha. Deixe em branco para manter a atual.</p>
+              <div className="space-y-3">
                 <div>
-                  <span className="font-medium">{u.username}</span>
-                  {u.is_admin === 1 && (
-                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5">admin</span>
-                  )}
+                  <label className={labelCls}>Senha atual <span className="text-red-400">*</span></label>
+                  <input type="password" value={form.current_password} onChange={set('current_password')}
+                    required autoComplete="current-password" className={inputCls} />
                 </div>
-                {u.is_admin !== 1 && (
-                  <button
-                    onClick={() => handleDeleteUser(u)}
-                    className="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded hover:bg-red-50"
-                  >
-                    Excluir
-                  </button>
-                )}
+                <div>
+                  <label className={labelCls}>Nova senha</label>
+                  <input type="password" value={form.new_password} onChange={set('new_password')}
+                    autoComplete="new-password" placeholder="Deixe em branco para não alterar" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Confirmar nova senha</label>
+                  <input type="password" value={form.confirm_password} onChange={set('confirm_password')}
+                    autoComplete="new-password" placeholder="Repita a nova senha" className={inputCls} />
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
 
-          {/* Create user form */}
-          <form onSubmit={handleCreateUser} className="space-y-3 pt-2 border-t">
-            <p className="text-sm font-medium text-gray-700">Criar novo usuário</p>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Nome de usuário</label>
-              <input
-                type="text"
-                value={newUser.username}
-                onChange={(e) => setNewUser((u) => ({ ...u, username: e.target.value }))}
-                required
-                placeholder="nome_usuario"
-                className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Senha (mín. 6 caracteres)</label>
-              <input
-                type="password"
-                value={newUser.password}
-                onChange={(e) => setNewUser((u) => ({ ...u, password: e.target.value }))}
-                required
-                placeholder="••••••"
-                className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            </div>
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={creatingUser}
-                className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 text-white text-sm disabled:opacity-50"
-              >
-                {creatingUser ? 'Criando...' : 'Criar usuário'}
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => navigate(-1)}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                Cancelar
+              </button>
+              <button type="submit" disabled={saving}
+                className="px-4 py-2 rounded-lg bg-navy text-white text-sm hover:bg-navy-light disabled:opacity-50 transition-colors">
+                {saving ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </form>
         </div>
-      )}
+
+        {/* Gestão de usuários — admin only */}
+        {isAdmin && (
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <div className="text-sm font-semibold text-navy">Usuários</div>
+            </div>
+            <div className="p-5 space-y-4">
+              {userError   && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{userError}</p>}
+              {userSuccess && <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">{userSuccess}</p>}
+
+              {/* Lista */}
+              <div className="space-y-1.5">
+                {usersLoading ? (
+                  <p className="text-xs text-gray-400 animate-pulse">Carregando...</p>
+                ) : users.map((u) => (
+                  <div key={u.id}
+                    className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2.5 hover:bg-gray-50/60 transition-colors group">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-600">
+                        {u.username.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium text-navy">{u.username}</span>
+                      {u.is_admin === 1 && (
+                        <span className="text-[10px] bg-blue-50 text-blue-700 rounded-full px-2 py-0.5 font-medium">admin</span>
+                      )}
+                    </div>
+                    {u.is_admin !== 1 && (
+                      <button onClick={() => handleDeleteUser(u)}
+                        className="text-xs text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all px-2 py-1 rounded hover:bg-red-50">
+                        Excluir
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Criar usuário */}
+              <form onSubmit={handleCreateUser} className="pt-3 border-t border-gray-100 space-y-3">
+                <div className="text-xs font-medium text-gray-500">Criar novo usuário</div>
+                <div>
+                  <label className={labelCls}>Nome de usuário</label>
+                  <input type="text" value={newUser.username}
+                    onChange={(e) => setNewUser((u) => ({ ...u, username: e.target.value }))}
+                    required placeholder="nome_usuario" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Senha <span className="text-gray-400 font-normal">(mín. 6 caracteres)</span></label>
+                  <input type="password" value={newUser.password}
+                    onChange={(e) => setNewUser((u) => ({ ...u, password: e.target.value }))}
+                    required placeholder="••••••" className={inputCls} />
+                </div>
+                <div className="flex justify-end">
+                  <button type="submit" disabled={creatingUser}
+                    className="px-4 py-2 rounded-lg bg-success text-white text-sm hover:opacity-90 disabled:opacity-50 transition-opacity">
+                    {creatingUser ? 'Criando...' : 'Criar usuário'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

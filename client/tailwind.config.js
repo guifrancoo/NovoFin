@@ -4,14 +4,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50:  '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          900: '#1e3a8a',
+        navy: {
+          DEFAULT: '#1a1a2e',
+          light:   '#22223d',
+          dark:    '#12121f',
         },
+        brand: {
+          50:  '#e8f4fd',
+          100: '#b5d4f4',
+          500: '#378ADD',
+          600: '#185FA5',
+          700: '#0C447C',
+        },
+        success: '#27ae60',
+        danger:  '#c0392b',
+        warning: '#f39c12',
+      },
+      fontFamily: {
+        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        mono: ['DM Mono', 'monospace'],
       },
     },
   },

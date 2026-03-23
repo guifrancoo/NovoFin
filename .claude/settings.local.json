@@ -76,7 +76,10 @@
       "Bash(powershell -Command \"Stop-Process -Id 2972 -Force -ErrorAction SilentlyContinue; Write-Host 'done'\")",
       "Bash(find:*)",
       "Bash(node --experimental-sqlite reprocess-due-dates.js)",
-      "Bash(node --experimental-sqlite restore-from-railway.js)"
+      "Bash(node --experimental-sqlite restore-from-railway.js)",
+      "Bash(cp:*)",
+      "Bash(npm install:*)",
+      "Bash(node:*)"
     ]
   }
 }

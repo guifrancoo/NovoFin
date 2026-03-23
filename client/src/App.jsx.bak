@@ -38,24 +38,6 @@ const NAV = [
     ),
   },
   {
-    to: '/novo',
-    label: 'Lançamentos',
-    icon: (active) => (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-        stroke={active ? '#fff' : 'rgba(255,255,255,0.45)'} strokeWidth="2">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 8v8M8 12h8"/>
-      </svg>
-    ),
-    mobileIcon: (active) => (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-        stroke={active ? '#1a1a2e' : '#9ca3af'} strokeWidth="2">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 8v8M8 12h8"/>
-      </svg>
-    ),
-  },
-  {
     to: '/faturas',
     label: 'Faturas',
     icon: (active) => (
@@ -188,10 +170,9 @@ function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Exclui /novo (FAB dedicado) e /perfil (ícone no Topbar), pega 2 esquerda + 2 direita
-  const navItems = NAV.filter(({ to }) => to !== '/novo' && to !== '/perfil');
-  const left  = navItems.slice(0, 2);
-  const right = navItems.slice(2, 4);
+  // Split nav: 2 left + FAB center + 2 right
+  const left  = NAV.slice(0, 2);
+  const right = NAV.slice(2, 4);
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
@@ -239,7 +220,7 @@ function BottomNav() {
   );
 }
 
-function Topbar() {
+function Topbar({ username, onLogout }) {
   const location = useLocation();
   const titles = {
     '/':              'Dashboard',
@@ -250,33 +231,21 @@ function Topbar() {
     '/perfil':        'Perfil',
   };
   const title = titles[location.pathname] ?? 'NovoFin';
-  const showNewBtn = location.pathname !== '/novo';
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 md:px-5 h-12 flex items-center justify-between shrink-0">
       <span className="font-semibold text-navy text-sm">{title}</span>
-      <div className="flex items-center gap-3">
-        {showNewBtn && (
-          <NavLink to="/novo"
-            className="hidden md:flex items-center gap-1.5 bg-navy text-white text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-navy-light transition-colors">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
-            Novo lançamento
-          </NavLink>
-        )}
-        <NavLink to="/perfil"
-          className={({ isActive }) =>
-            `md:hidden w-8 h-8 flex items-center justify-center rounded-full transition-colors ${
-              isActive ? 'bg-navy/10 text-navy' : 'text-gray-400 hover:text-navy hover:bg-gray-100'
-            }`
-          }>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="8" r="4"/>
-            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-          </svg>
-        </NavLink>
+      <div className="hidden md:flex items-center gap-3">
+        <span className="text-xs text-gray-400">{username}</span>
+        <button
+          onClick={onLogout}
+          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          Sair
+        </button>
       </div>
+      {/* Mobile: NovoFin branding no topbar */}
+      <span className="md:hidden text-xs font-semibold text-navy/50 tracking-tight">NovoFin</span>
     </header>
   );
 }
@@ -297,7 +266,7 @@ function Layout() {
       <Sidebar username={username} onLogout={handleLogout} />
 
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Topbar />
+        <Topbar username={username} onLogout={handleLogout} />
 
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <Routes>

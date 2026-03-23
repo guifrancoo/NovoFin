@@ -3,7 +3,97 @@
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    @apply bg-gray-50 text-gray-900;
+  }
+
+  /* Scrollbar fina e discreta */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-200 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-300;
+  }
+}
+
+@layer components {
+  /* Input padrão NovoFin */
+  .nf-input {
+    @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50
+           focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40
+           transition-colors placeholder-gray-400;
+  }
+
+  /* Label padrão */
+  .nf-label {
+    @apply block text-xs font-medium text-gray-500 mb-1;
+  }
+
+  /* Card padrão */
+  .nf-card {
+    @apply bg-white rounded-xl border border-gray-100;
+  }
+
+  /* Botão primário */
+  .nf-btn-primary {
+    @apply px-4 py-2 rounded-lg bg-navy text-white text-sm font-medium
+           hover:bg-navy-light disabled:opacity-50 transition-colors;
+  }
+
+  /* Botão secundário */
+  .nf-btn-secondary {
+    @apply px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600
+           hover:bg-gray-50 transition-colors;
+  }
+
+  /* Badge de pagamento */
+  .nf-badge {
+    @apply text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium;
+  }
+
+  .nf-badge-blue {
+    @apply text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-brand-600 font-medium;
+  }
+}
+
+@layer utilities {
+  /* Cor navy via CSS var para uso inline */
+  .text-navy { color: #1a1a2e; }
+  .bg-navy   { background-color: #1a1a2e; }
+  .bg-navy-light { background-color: #22223d; }
+  .border-navy { border-color: #1a1a2e; }
+  .ring-navy { --tw-ring-color: #1a1a2e; }
+
+  .text-success { color: #27ae60; }
+  .text-danger  { color: #c0392b; }
+  .bg-success   { background-color: #27ae60; }
+  .bg-danger    { background-color: #c0392b; }
+
+  /* Sidebar border opacity helper */
+  .border-white\/8  { border-color: rgba(255,255,255,0.08); }
+  .border-white\/12 { border-color: rgba(255,255,255,0.12); }
+  .bg-white\/6      { background-color: rgba(255,255,255,0.06); }
+  .bg-white\/8      { background-color: rgba(255,255,255,0.08); }
+  .bg-white\/10     { background-color: rgba(255,255,255,0.10); }
+  .bg-white\/12     { background-color: rgba(255,255,255,0.12); }
+  .bg-white\/15     { background-color: rgba(255,255,255,0.15); }
+  .text-white\/35   { color: rgba(255,255,255,0.35); }
+  .text-white\/45   { color: rgba(255,255,255,0.45); }
+  .text-white\/50   { color: rgba(255,255,255,0.50); }
+  .text-white\/60   { color: rgba(255,255,255,0.60); }
+  .text-white\/70   { color: rgba(255,255,255,0.70); }
+  .text-white\/75   { color: rgba(255,255,255,0.75); }
 }
