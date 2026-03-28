@@ -8,6 +8,45 @@ import {
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-colors';
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1';
 
+// ─── Ícones por categoria ─────────────────────────────────────────────────────
+const CAT_ICONS = {
+  'Alimentação':          { icon: '🛒', bg: '#fef3cd' },
+  'Bares e Restaurantes': { icon: '🍔', bg: '#fff0e6' },
+  'Moradia':              { icon: '🏠', bg: '#fde8e8' },
+  'Transporte':           { icon: '🚗', bg: '#e8f4fd' },
+  'Saúde':                { icon: '💊', bg: '#fde8e8' },
+  'Educação':             { icon: '📚', bg: '#e8f4fd' },
+  'Lazer':                { icon: '🎬', bg: '#f3e8fd' },
+  'Viagem':               { icon: '✈️', bg: '#e8f4fd' },
+  'Compras':              { icon: '🛍️', bg: '#fef3cd' },
+  'Investimento':         { icon: '📈', bg: '#d5f5e3' },
+  'Família':              { icon: '👨‍👩‍👧', bg: '#fde8e8' },
+  'Telefone':             { icon: '📱', bg: '#eafaf1' },
+  'Salário':              { icon: '💰', bg: '#d5f5e3' },
+  'Receita':              { icon: '💰', bg: '#d5f5e3' },
+  'Outras Rendas':        { icon: '💵', bg: '#d5f5e3' },
+  'Contas':               { icon: '⚡', bg: '#e8f4fd' },
+  'Presentes':            { icon: '🎁', bg: '#fde8e8' },
+  'Trabalho':             { icon: '💼', bg: '#f0f0f0' },
+  'Despesas do Trabalho': { icon: '💼', bg: '#f0f0f0' },
+  'Outros':               { icon: '📦', bg: '#f0f0f0' },
+  'Saques':               { icon: '💸', bg: '#fef3cd' },
+  'Pagamentos Cartões':   { icon: '💳', bg: '#e8f4fd' },
+};
+function CatIcon({ category }) {
+  const cat = CAT_ICONS[category];
+  if (cat) return (
+    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0" style={{ background: cat.bg }}>{cat.icon}</div>
+  );
+  return (
+    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-gray-100">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+        <rect x="3" y="3" width="18" height="18" rx="3"/>
+      </svg>
+    </div>
+  );
+}
+
 // ─── Cores por cartão ──────────────────────────────────────────────────────────
 const CARD_COLORS = {
   'TAM':          { bg: '#185FA5', light: '#1e72c2' },
@@ -336,9 +375,10 @@ export default function Invoices() {
                       <div className="border-t border-gray-50 overflow-x-auto">
                         <table className="w-full table-fixed">
                           <colgroup>
-                            <col style={{ width: '8%' }} />
-                            <col style={{ width: '24%' }} />
-                            <col style={{ width: '30%' }} />
+                            <col style={{ width: '6%' }} />
+                            <col style={{ width: '6%' }} />
+                            <col style={{ width: '20%' }} />
+                            <col style={{ width: '28%' }} />
                             <col className="hidden md:table-column" style={{ width: '0%' }} />
                             <col style={{ width: '12%' }} />
                             <col style={{ width: '18%' }} />
@@ -347,6 +387,7 @@ export default function Invoices() {
                           <thead>
                             <tr className="bg-gray-50/80">
                               <th className="px-3 py-2.5 w-8"></th>
+                              <th className="px-2 py-2.5 w-8"></th>
                               <th className="text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide whitespace-nowrap">Vencimento</th>
                               <th className="text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide">Local</th>
                               <th className="hidden md:table-cell text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide">Categoria</th>
@@ -381,6 +422,10 @@ export default function Invoices() {
                                         <polyline points="20 6 9 17 4 12"/>
                                       </svg>
                                     </button>
+                                  </td>
+                                  {/* Ícone da categoria */}
+                                  <td className="px-1 py-3 text-center">
+                                    <CatIcon category={e.category} />
                                   </td>
                                   <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDate(e.due_date)}</td>
                                   <td className="px-3 py-3">
@@ -422,6 +467,7 @@ export default function Invoices() {
                           {/* Subtotal do mês */}
                           <tfoot>
                             <tr className="border-t border-gray-100 bg-gray-50/50">
+                              <td className="px-3 py-2.5" />
                               <td className="px-3 py-2.5" />
                               <td colSpan={2} className="px-3 py-2.5 text-xs text-gray-400">
                                 {totalCount} lançamento{totalCount !== 1 ? 's' : ''}

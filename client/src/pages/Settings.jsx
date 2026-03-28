@@ -40,11 +40,26 @@ function AddBtn({ onClick, children, variant = 'navy' }) {
   );
 }
 
+const TYPE_LABEL = { credit: 'Crédito', debit: 'Débito', cash: 'Dinheiro' };
+const TYPE_STYLE = {
+  credit: 'bg-blue-100 text-blue-700',
+  debit:  'bg-emerald-100 text-emerald-700',
+  cash:   'bg-gray-100 text-gray-600',
+};
+
+function TypeBadge({ type }) {
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${TYPE_STYLE[type] || TYPE_STYLE.cash}`}>
+      {TYPE_LABEL[type] || type}
+    </span>
+  );
+}
+
 // ─── Cartões e Métodos de Pagamento ───────────────────────────────────────────
 function PaymentMethodsSection() {
   const [methods, setMethods] = useState([]);
   const [name, setName]       = useState('');
-  const [tipo, setTipo]       = useState('debito'); // 'credito' | 'debito' | 'dinheiro'
+  const [tipo, setTipo]       = useState('cash'); // 'credit' | 'debit' | 'cash'
   const [err, setErr]         = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null); // id a confirmar
 
@@ -54,10 +69,9 @@ function PaymentMethodsSection() {
   const add = async () => {
     setErr('');
     if (!name.trim()) return setErr('Digite um nome');
-    const is_card = tipo === 'credito' ? 1 : 0;
     try {
-      await createPaymentMethod({ name: name.trim(), is_card });
-      setName(''); setTipo('debito'); load();
+      await createPaymentMethod({ name: name.trim(), card_type: tipo });
+      setName(''); setTipo('cash'); load();
     } catch (e) { setErr(e.response?.data?.error || 'Erro ao adicionar'); }
   };
 
@@ -68,16 +82,6 @@ function PaymentMethodsSection() {
     catch (e) { setErr(e.response?.data?.error || 'Erro ao remover'); }
   };
 
-  const tipoLabel = (m) => {
-    if (m.is_card) return 'crédito';
-    return m.name.toLowerCase().includes('dinheiro') ? 'dinheiro' : 'débito';
-  };
-
-  const tipoBadge = (m) => {
-    if (m.is_card) return 'bg-blue-50 text-blue-700';
-    return 'bg-gray-100 text-gray-500';
-  };
-
   return (
     <SectionCard
       title="Cartões e métodos de pagamento"
@@ -85,32 +89,33 @@ function PaymentMethodsSection() {
 
       {/* Lista */}
       <div className="space-y-2">
-        {methods.map((m) => (
-          <div key={m.id} className="flex items-center justify-between px-3 py-2.5 border border-gray-100 rounded-lg">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-navy">{m.name}</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${tipoBadge(m)}`}>
-                {tipoLabel(m)}
-              </span>
-            </div>
-            {confirmDelete === m.id ? (
+        {methods.map((m) => {
+          const cardType = m.card_type || (m.is_card ? 'credit' : 'cash');
+          return (
+            <div key={m.id} className="flex items-center justify-between px-3 py-2.5 border border-gray-100 rounded-lg">
               <div className="flex items-center gap-2">
-                <span className="text-xs text-red-600">Confirmar?</span>
-                <button onClick={() => remove(m.id)}
-                  className="px-2 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Sim</button>
-                <button onClick={() => setConfirmDelete(null)}
-                  className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Não</button>
+                <TypeBadge type={cardType} />
+                <span className="text-xs font-medium text-navy">{m.name}</span>
               </div>
-            ) : (
-              <button onClick={() => setConfirmDelete(m.id)} title="Remover"
-                className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M18 6L6 18M6 6l12 12"/>
-                </svg>
-              </button>
-            )}
-          </div>
-        ))}
+              {confirmDelete === m.id ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-600">Confirmar?</span>
+                  <button onClick={() => remove(m.id)}
+                    className="px-2 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Sim</button>
+                  <button onClick={() => setConfirmDelete(null)}
+                    className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Não</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmDelete(m.id)} title="Remover"
+                  className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+          );
+        })}
         {methods.length === 0 && <p className="text-xs text-gray-400">Nenhum método cadastrado</p>}
       </div>
 
@@ -125,9 +130,9 @@ function PaymentMethodsSection() {
         <div>
           <label className={labelCls}>Tipo</label>
           <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputCls}>
-            <option value="credito">Crédito</option>
-            <option value="debito">Débito</option>
-            <option value="dinheiro">Dinheiro</option>
+            <option value="credit">Crédito</option>
+            <option value="debit">Débito</option>
+            <option value="cash">Dinheiro / Outro</option>
           </select>
         </div>
         <AddBtn onClick={add}>Adicionar</AddBtn>

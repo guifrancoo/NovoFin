@@ -8,15 +8,19 @@ router.get('/', (_req, res) => {
   res.json(db.prepare('SELECT * FROM payment_methods ORDER BY name').all());
 });
 
-// POST /api/payment-methods  { name, is_card }
+// POST /api/payment-methods  { name, card_type } or { name, is_card } (legacy)
 router.post('/', (req, res) => {
-  const { name, is_card = false } = req.body;
+  const { name, is_card, card_type } = req.body;
   if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
+
+  // card_type takes precedence; fall back to is_card boolean for legacy callers
+  const finalCardType = card_type || (is_card ? 'credit' : 'cash');
+  const finalIsCard   = finalCardType === 'credit' ? 1 : 0;
 
   try {
     const info = db.prepare(
-      'INSERT INTO payment_methods (name, is_card) VALUES (?, ?)'
-    ).run(name.trim(), is_card ? 1 : 0);
+      'INSERT INTO payment_methods (name, is_card, card_type) VALUES (?, ?, ?)'
+    ).run(name.trim(), finalIsCard, finalCardType);
     const row = db.prepare('SELECT * FROM payment_methods WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json(row);
   } catch (e) {

@@ -208,6 +208,11 @@ function initDatabase() {
   // Migrate: add is_checked column to expenses (safe, idempotent)
   try { db.exec('ALTER TABLE expenses ADD COLUMN is_checked INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
 
+  // Migrate: add card_type column to payment_methods (safe, idempotent)
+  try { db.exec("ALTER TABLE payment_methods ADD COLUMN card_type TEXT NOT NULL DEFAULT 'cash'"); } catch (_) {}
+  // Set card_type = 'credit' for existing credit cards
+  try { db.exec("UPDATE payment_methods SET card_type = 'credit' WHERE is_card = 1 AND card_type = 'cash'"); } catch (_) {}
+
   // Assign existing expenses without user_id to the admin user
   db.prepare(`
     UPDATE expenses
