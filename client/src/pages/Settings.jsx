@@ -3,7 +3,7 @@ import {
   getPaymentMethods, createPaymentMethod, deletePaymentMethod,
   getCategories, createCategory, deleteCategory,
   getAllSubcategories, createSubcategory, deleteSubcategory,
-  getCutoffDates, saveCutoffDate, deleteCutoffDate,
+  getAllCutoffDates, saveCutoffDate, deleteCutoffDate,
   MONTH_NAMES,
 } from '../api';
 
@@ -28,35 +28,25 @@ function ErrorBanner({ msg }) {
   return <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{msg}</p>;
 }
 
-function Tag({ label, onDelete }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1.5 text-xs font-medium text-gray-700">
-      {label}
-      <button onClick={onDelete} title="Remover"
-        className="w-3.5 h-3.5 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors leading-none">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <path d="M18 6L6 18M6 6l12 12"/>
-        </svg>
-      </button>
-    </span>
-  );
-}
-
-function AddBtn({ onClick, children }) {
+function AddBtn({ onClick, children, variant = 'navy' }) {
+  const cls = variant === 'danger'
+    ? 'bg-red-500 hover:bg-red-600 text-white'
+    : 'bg-navy hover:bg-navy-light text-white';
   return (
     <button onClick={onClick}
-      className="w-full sm:w-auto px-4 py-2 rounded-lg bg-navy text-white text-xs font-medium hover:bg-navy-light transition-colors whitespace-nowrap">
+      className={`w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${cls}`}>
       {children}
     </button>
   );
 }
 
-// ─── Métodos de pagamento ─────────────────────────────────────────────────────
+// ─── Cartões e Métodos de Pagamento ───────────────────────────────────────────
 function PaymentMethodsSection() {
   const [methods, setMethods] = useState([]);
   const [name, setName]       = useState('');
-  const [isCard, setIsCard]   = useState(false);
+  const [tipo, setTipo]       = useState('debito'); // 'credito' | 'debito' | 'dinheiro'
   const [err, setErr]         = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(null); // id a confirmar
 
   const load = useCallback(() => getPaymentMethods().then((r) => setMethods(r.data)), []);
   useEffect(() => { load(); }, [load]);
@@ -64,39 +54,82 @@ function PaymentMethodsSection() {
   const add = async () => {
     setErr('');
     if (!name.trim()) return setErr('Digite um nome');
+    const is_card = tipo === 'credito' ? 1 : 0;
     try {
-      await createPaymentMethod({ name: name.trim(), is_card: isCard });
-      setName(''); setIsCard(false); load();
+      await createPaymentMethod({ name: name.trim(), is_card });
+      setName(''); setTipo('debito'); load();
     } catch (e) { setErr(e.response?.data?.error || 'Erro ao adicionar'); }
   };
 
   const remove = async (id) => {
     setErr('');
+    setConfirmDelete(null);
     try { await deletePaymentMethod(id); load(); }
     catch (e) { setErr(e.response?.data?.error || 'Erro ao remover'); }
   };
 
+  const tipoLabel = (m) => {
+    if (m.is_card) return 'crédito';
+    return m.name.toLowerCase().includes('dinheiro') ? 'dinheiro' : 'débito';
+  };
+
+  const tipoBadge = (m) => {
+    if (m.is_card) return 'bg-blue-50 text-blue-700';
+    return 'bg-gray-100 text-gray-500';
+  };
+
   return (
     <SectionCard
-      title="Métodos de pagamento"
-      description="Adicione ou remova formas de pagamento. Métodos marcados como cartão de crédito têm fatura e data de corte.">
-      <div className="flex flex-wrap gap-2 min-h-[32px]">
+      title="Cartões e métodos de pagamento"
+      description="Gerencie seus cartões e formas de pagamento. Cartões de crédito têm fatura e data de corte.">
+
+      {/* Lista */}
+      <div className="space-y-2">
         {methods.map((m) => (
-          <Tag key={m.id}
-            label={m.is_card ? `${m.name} (cartão)` : m.name}
-            onDelete={() => remove(m.id)} />
+          <div key={m.id} className="flex items-center justify-between px-3 py-2.5 border border-gray-100 rounded-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-navy">{m.name}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${tipoBadge(m)}`}>
+                {tipoLabel(m)}
+              </span>
+            </div>
+            {confirmDelete === m.id ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-red-600">Confirmar?</span>
+                <button onClick={() => remove(m.id)}
+                  className="px-2 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Sim</button>
+                <button onClick={() => setConfirmDelete(null)}
+                  className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Não</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmDelete(m.id)} title="Remover"
+                className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            )}
+          </div>
         ))}
         {methods.length === 0 && <p className="text-xs text-gray-400">Nenhum método cadastrado</p>}
       </div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center pt-3 border-t border-gray-100">
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="Novo método..." className={`${inputCls} flex-1 min-w-[160px]`} />
-        <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
-          <input type="checkbox" checked={isCard} onChange={(e) => setIsCard(e.target.checked)}
-            className="w-3.5 h-3.5 accent-navy rounded" />
-          É cartão de crédito
-        </label>
+
+      {/* Adicionar */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end pt-3 border-t border-gray-100">
+        <div className="flex-1 min-w-[140px]">
+          <label className={labelCls}>Nome</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && add()}
+            placeholder="Ex: Nubank, Pix..." className={`${inputCls} w-full`} />
+        </div>
+        <div>
+          <label className={labelCls}>Tipo</label>
+          <select value={tipo} onChange={(e) => setTipo(e.target.value)} className={inputCls}>
+            <option value="credito">Crédito</option>
+            <option value="debito">Débito</option>
+            <option value="dinheiro">Dinheiro</option>
+          </select>
+        </div>
         <AddBtn onClick={add}>Adicionar</AddBtn>
       </div>
       <ErrorBanner msg={err} />
@@ -252,32 +285,37 @@ function CategoriesSection() {
 // ─── Datas de corte ───────────────────────────────────────────────────────────
 function CutoffDatesSection() {
   const [cardMethods, setCardMethods] = useState([]);
+  const [allCutoffs, setAllCutoffs]   = useState([]);
+  // Form para adicionar / editar
   const [selectedId, setSelectedId]  = useState('');
-  const [cutoffs, setCutoffs]         = useState([]);
   const [year, setYear]               = useState(new Date().getFullYear());
   const [month, setMonth]             = useState(new Date().getMonth() + 1);
   const [day, setDay]                 = useState(25);
   const [err, setErr]                 = useState('');
+  const [editingId, setEditingId]     = useState(null); // id da linha em edição
 
-  useEffect(() => {
+  const loadCards = useCallback(() => {
     getPaymentMethods().then((r) => {
       const cards = r.data.filter((m) => m.is_card);
       setCardMethods(cards);
-      if (cards.length > 0) setSelectedId(String(cards[0].id));
+      if (cards.length > 0 && !selectedId) setSelectedId(String(cards[0].id));
     });
-  }, []);
-
-  const loadCutoffs = useCallback(() => {
-    if (!selectedId) return;
-    getCutoffDates(selectedId).then((r) => setCutoffs(r.data));
   }, [selectedId]);
 
-  useEffect(() => { loadCutoffs(); }, [loadCutoffs]);
+  const loadCutoffs = useCallback(() => {
+    getAllCutoffDates().then((r) => setAllCutoffs(r.data));
+  }, []);
+
+  useEffect(() => { loadCards(); loadCutoffs(); }, []);
 
   const save = async () => {
     setErr('');
-    try { await saveCutoffDate({ payment_method_id: selectedId, year, month, cutoff_day: day }); loadCutoffs(); }
-    catch (e) { setErr(e.response?.data?.error || 'Erro ao salvar'); }
+    if (!selectedId) return setErr('Selecione um cartão');
+    try {
+      await saveCutoffDate({ payment_method_id: selectedId, year, month, cutoff_day: day });
+      loadCutoffs();
+      setEditingId(null);
+    } catch (e) { setErr(e.response?.data?.error || 'Erro ao salvar'); }
   };
 
   const remove = async (id) => {
@@ -286,7 +324,30 @@ function CutoffDatesSection() {
     catch (e) { setErr(e.response?.data?.error || 'Erro ao remover'); }
   };
 
+  const startEdit = (c) => {
+    setSelectedId(String(c.payment_method_id));
+    setYear(c.year);
+    setMonth(c.month);
+    setDay(c.cutoff_day);
+    setEditingId(c.id);
+    // Scroll suave ao formulário
+    document.getElementById('cutoff-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setErr('');
+  };
+
   const years = [new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1];
+
+  // Agrupar datas de corte por cartão
+  const cutoffsByCard = allCutoffs.reduce((acc, c) => {
+    const key = c.payment_method_name;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(c);
+    return acc;
+  }, {});
 
   return (
     <SectionCard
@@ -294,67 +355,104 @@ function CutoffDatesSection() {
       description="Define o dia de corte por cartão e mês. Compras até o dia de corte vão para a fatura do mesmo mês; compras após o corte vão para o mês seguinte. Padrão: dia 25.">
 
       {cardMethods.length === 0 ? (
-        <p className="text-xs text-gray-400">Nenhum cartão cadastrado. Adicione um método marcado como cartão de crédito.</p>
+        <p className="text-xs text-gray-400">Nenhum cartão cadastrado. Adicione um método do tipo crédito em "Cartões e métodos de pagamento".</p>
       ) : (
         <>
-          <div>
-            <label className={labelCls}>Cartão</label>
-            <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} className={inputCls}>
-              {cardMethods.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
-          </div>
-
-          <div className="flex flex-wrap gap-3 items-end pt-3 border-t border-gray-100">
-            <div>
-              <label className={labelCls}>Ano</label>
-              <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={inputCls}>
-                {years.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Mês</label>
-              <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={inputCls}>
-                {MONTH_NAMES.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={labelCls}>Dia de corte</label>
-              <input type="number" min="1" max="31" value={day}
-                onChange={(e) => setDay(Number(e.target.value))}
-                className={`${inputCls} w-20`} />
-            </div>
-            <AddBtn onClick={save}>Salvar</AddBtn>
-          </div>
-          <ErrorBanner msg={err} />
-
-          {cutoffs.length > 0 ? (
-            <div>
-              {cutoffs.map((c) => {
-                const cutMonth = `${MONTH_NAMES[c.month - 1]} ${c.year}`;
-                const nextM    = c.month === 12 ? `Jan ${c.year + 1}` : `${MONTH_NAMES[c.month]} ${c.year}`;
-                return (
-                  <div key={c.id} className="border border-gray-100 rounded-lg p-3 mb-2 last:mb-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm text-navy">{cutMonth}</span>
-                      <button onClick={() => remove(c.id)}
-                        className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M18 6L6 18M6 6l12 12"/>
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">Corte: dia {c.cutoff_day}</div>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">Até o corte: Fatura de {cutMonth}</span>
-                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">Após o corte: Fatura de {nextM}</span>
-                    </div>
+          {/* Lista de todas as datas de corte, agrupadas por cartão */}
+          {Object.keys(cutoffsByCard).length > 0 ? (
+            <div className="space-y-4">
+              {Object.entries(cutoffsByCard).map(([cardName, cutoffs]) => (
+                <div key={cardName}>
+                  <div className="text-xs font-semibold text-navy mb-2">{cardName}</div>
+                  <div className="space-y-1.5">
+                    {cutoffs.map((c) => {
+                      const cutMonth = `${MONTH_NAMES[c.month - 1]} ${c.year}`;
+                      const nextM    = c.month === 12 ? `Jan ${c.year + 1}` : `${MONTH_NAMES[c.month]} ${c.year}`;
+                      const isEditing = editingId === c.id;
+                      return (
+                        <div key={c.id}
+                          className={`border rounded-lg p-3 transition-colors ${isEditing ? 'border-navy/30 bg-blue-50/30' : 'border-gray-100'}`}>
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm text-navy">{cutMonth}</span>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => isEditing ? cancelEdit() : startEdit(c)}
+                                title={isEditing ? 'Cancelar edição' : 'Editar'}
+                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
+                                  isEditing
+                                    ? 'text-blue-600 bg-blue-100'
+                                    : 'text-gray-300 hover:text-blue-500 hover:bg-blue-50'
+                                }`}>
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                              </button>
+                              <button onClick={() => remove(c.id)} title="Excluir"
+                                className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M18 6L6 18M6 6l12 12"/>
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">Corte: dia {c.cutoff_day}</div>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">Até o corte: Fatura de {cutMonth}</span>
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">Após o corte: Fatura de {nextM}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           ) : (
             <p className="text-xs text-gray-400">Nenhuma data configurada. Será usado o dia 25 como padrão.</p>
           )}
+
+          {/* Formulário adicionar / editar */}
+          <div id="cutoff-form" className="pt-4 border-t border-gray-100 space-y-3">
+            <div className="text-xs font-medium text-gray-500">
+              {editingId ? '✏️ Editar data de corte' : 'Adicionar data de corte'}
+            </div>
+            <div className="flex flex-wrap gap-3 items-end">
+              <div>
+                <label className={labelCls}>Cartão</label>
+                <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} className={inputCls}>
+                  {cardMethods.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Ano</label>
+                <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={inputCls}>
+                  {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Mês</label>
+                <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={inputCls}>
+                  {MONTH_NAMES.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Dia de corte</label>
+                <input type="number" min="1" max="31" value={day}
+                  onChange={(e) => setDay(Number(e.target.value))}
+                  className={`${inputCls} w-20`} />
+              </div>
+              <div className="flex gap-2">
+                <AddBtn onClick={save}>{editingId ? 'Atualizar' : 'Salvar'}</AddBtn>
+                {editingId && (
+                  <button onClick={cancelEdit}
+                    className="px-4 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors">
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </div>
+            <ErrorBanner msg={err} />
+          </div>
         </>
       )}
     </SectionCard>

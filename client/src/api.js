@@ -46,6 +46,7 @@ export const updateExpense = (id, data) => api.patch(`/expenses/${id}`, data);
 export const updateGroup   = (gid, data) => api.patch(`/expenses/group/${gid}`, data);
 export const deleteExpense = (id)     => api.delete(`/expenses/${id}`);
 export const deleteGroup   = (gid)    => api.delete(`/expenses/group/${gid}`);
+export const checkExpense  = (id, checked) => api.patch(`/expenses/${id}/check`, { is_checked: checked ? 1 : 0 });
 
 // Dashboard — aceita { month } para mês único ou { start, end } para período
 export const getDashboard  = (params) => api.get('/dashboard', { params });
@@ -77,9 +78,10 @@ export const createSubcategory  = (data)       => api.post('/subcategories', dat
 export const deleteSubcategory  = (id)         => api.delete(`/subcategories/${id}`);
 
 // Cutoff dates
-export const getCutoffDates  = (pmId) => api.get('/cutoff-dates', { params: { payment_method_id: pmId } });
-export const saveCutoffDate  = (data) => api.post('/cutoff-dates', data);
-export const deleteCutoffDate = (id)  => api.delete(`/cutoff-dates/${id}`);
+export const getCutoffDates    = (pmId) => api.get('/cutoff-dates', { params: { payment_method_id: pmId } });
+export const getAllCutoffDates = ()     => api.get('/cutoff-dates');
+export const saveCutoffDate    = (data) => api.post('/cutoff-dates', data);
+export const deleteCutoffDate  = (id)   => api.delete(`/cutoff-dates/${id}`);
 
 // Formatters
 export const fmtCurrency = (v) =>

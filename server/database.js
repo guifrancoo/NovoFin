@@ -205,6 +205,9 @@ function initDatabase() {
   // Migrate: add is_international column to expenses (safe, idempotent)
   try { db.exec('ALTER TABLE expenses ADD COLUMN is_international INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
 
+  // Migrate: add is_checked column to expenses (safe, idempotent)
+  try { db.exec('ALTER TABLE expenses ADD COLUMN is_checked INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
+
   // Assign existing expenses without user_id to the admin user
   db.prepare(`
     UPDATE expenses

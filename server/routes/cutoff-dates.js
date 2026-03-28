@@ -3,18 +3,28 @@ const { db } = require('../database');
 
 const router = Router();
 
-// GET /api/cutoff-dates?payment_method_id=1
+// GET /api/cutoff-dates?payment_method_id=1  (optional — if omitted, returns all)
 router.get('/', (req, res) => {
   const { payment_method_id } = req.query;
-  if (!payment_method_id) return res.status(400).json({ error: 'payment_method_id is required' });
 
+  if (payment_method_id) {
+    const rows = db.prepare(`
+      SELECT cd.*, pm.name AS payment_method_name
+      FROM cutoff_dates cd
+      JOIN payment_methods pm ON pm.id = cd.payment_method_id
+      WHERE cd.payment_method_id = ?
+      ORDER BY cd.year DESC, cd.month DESC
+    `).all(payment_method_id);
+    return res.json(rows);
+  }
+
+  // Return all cutoffs for all card methods
   const rows = db.prepare(`
     SELECT cd.*, pm.name AS payment_method_name
     FROM cutoff_dates cd
     JOIN payment_methods pm ON pm.id = cd.payment_method_id
-    WHERE cd.payment_method_id = ?
-    ORDER BY cd.year DESC, cd.month DESC
-  `).all(payment_method_id);
+    ORDER BY pm.name, cd.year DESC, cd.month DESC
+  `).all();
 
   res.json(rows);
 });

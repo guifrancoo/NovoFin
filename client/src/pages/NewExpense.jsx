@@ -55,9 +55,12 @@ export default function NewExpense() {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const isReceita = type === 'receita';
-  const filteredCategories = categories.filter((c) =>
-    isReceita ? c.is_income === 1 : c.is_income !== 1
-  );
+
+  // Despesas: excluir categorias de receita
+  // Receitas: mostrar TODAS — categorias de receita destacadas no topo
+  const incomeCategories  = categories.filter((c) => c.is_income === 1);
+  const expenseCategories = categories.filter((c) => c.is_income !== 1);
+  const filteredCategories = isReceita ? null : expenseCategories; // null = usa optgroup
 
   const selectedMethod = methods.find((m) => m.name === form.payment_method);
   const isCard = selectedMethod?.is_card === 1;
@@ -150,51 +153,36 @@ export default function NewExpense() {
               </button>
             </div>
 
-            {/* Valor — destaque */}
+            {/* 1. Data */}
             <div>
-              <label className={labelCls}>{isReceita ? 'Valor recebido (R$)' : 'Valor total (R$)'}</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">R$</span>
-                <input type="number" step="0.01" min="0.01"
-                  value={form.total_amount} onChange={set('total_amount')} required
-                  placeholder="0,00"
-                  className={`${inputCls} pl-10 text-lg font-semibold ${isReceita ? 'text-success' : 'text-danger'}`} />
-              </div>
-              {!isReceita && p && p.inst > 1 && (
-                <p className="text-xs text-gray-400 mt-1.5 bg-gray-50 rounded-lg px-3 py-1.5">
-                  {p.inst}x de {fmtCurrency(p.per)} — total {fmtCurrency(p.amt)}
-                </p>
-              )}
+              <label className={labelCls}>{isReceita ? 'Data do recebimento' : 'Data da compra'}</label>
+              <input type="date" value={form.purchase_date} onChange={set('purchase_date')}
+                required className={inputCls} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {/* Data */}
-              <div>
-                <label className={labelCls}>{isReceita ? 'Data do recebimento' : 'Data da compra'}</label>
-                <input type="date" value={form.purchase_date} onChange={set('purchase_date')}
-                  required className={inputCls} />
-              </div>
-              {/* Parcelas */}
-              {!isReceita && (
-                <div>
-                  <label className={labelCls}>Parcelas</label>
-                  <input type="number" min="1" max="60"
-                    value={form.installments} onChange={set('installments')}
-                    className={inputCls} />
-                </div>
-              )}
-            </div>
-
-            {/* Categoria */}
+            {/* 2. Categoria */}
             <div>
               <label className={labelCls}>Categoria</label>
               <select value={form.category} onChange={set('category')} required className={inputCls}>
                 <option value="">Selecione...</option>
-                {filteredCategories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {isReceita ? (
+                  <>
+                    <optgroup label="Receitas">
+                      {incomeCategories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </optgroup>
+                    {expenseCategories.length > 0 && (
+                      <optgroup label="Outras categorias (reembolsos etc.)">
+                        {expenseCategories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </optgroup>
+                    )}
+                  </>
+                ) : (
+                  filteredCategories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)
+                )}
               </select>
             </div>
 
-            {/* Subcategoria */}
+            {/* 3. Subcategoria */}
             {subcategories.length > 0 && (
               <div>
                 <label className={labelCls}>Subcategoria <span className="text-gray-400 font-normal">(opcional)</span></label>
@@ -205,15 +193,7 @@ export default function NewExpense() {
               </div>
             )}
 
-            {/* Local */}
-            <div>
-              <label className={labelCls}>{isReceita ? 'Origem / Fonte' : 'Local / Estabelecimento'}</label>
-              <input type="text" value={form.location} onChange={set('location')}
-                placeholder={isReceita ? 'Ex: Empresa XYZ' : 'Ex: Supermercado Extra'}
-                className={inputCls} />
-            </div>
-
-            {/* Método de pagamento */}
+            {/* 4. Método de pagamento */}
             <div>
               <label className={labelCls}>{isReceita ? 'Conta de destino' : 'Método de pagamento'}</label>
               <select value={form.payment_method} onChange={set('payment_method')} required className={inputCls}>
@@ -230,7 +210,7 @@ export default function NewExpense() {
               )}
             </div>
 
-            {/* Compra internacional */}
+            {/* 5. Compra internacional */}
             {!isReceita && (
               <div className="flex items-center gap-3 py-1">
                 <button type="button"
@@ -246,7 +226,42 @@ export default function NewExpense() {
               </div>
             )}
 
-            {/* Descrição */}
+            {/* 6. Valor total */}
+            <div>
+              <label className={labelCls}>{isReceita ? 'Valor recebido (R$)' : 'Valor total (R$)'}</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">R$</span>
+                <input type="number" step="0.01" min="0.01"
+                  value={form.total_amount} onChange={set('total_amount')} required
+                  placeholder="0,00"
+                  className={`${inputCls} pl-10 text-lg font-semibold ${isReceita ? 'text-success' : 'text-danger'}`} />
+              </div>
+            </div>
+
+            {/* 7. Parcelas */}
+            {!isReceita && (
+              <div>
+                <label className={labelCls}>Parcelas</label>
+                <input type="number" min="1" max="60"
+                  value={form.installments} onChange={set('installments')}
+                  className={inputCls} />
+                {p && p.inst > 1 && (
+                  <p className="text-xs text-gray-400 mt-1.5 bg-gray-50 rounded-lg px-3 py-1.5">
+                    {p.inst}x de {fmtCurrency(p.per)} — total {fmtCurrency(p.amt)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Local */}
+            <div>
+              <label className={labelCls}>{isReceita ? 'Origem / Fonte' : 'Local / Estabelecimento'}</label>
+              <input type="text" value={form.location} onChange={set('location')}
+                placeholder={isReceita ? 'Ex: Empresa XYZ' : 'Ex: Supermercado Extra'}
+                className={inputCls} />
+            </div>
+
+            {/* 8. Descrição */}
             <div>
               <label className={labelCls}>Descrição <span className="text-gray-400 font-normal">(opcional)</span></label>
               <input type="text" value={form.description} onChange={set('description')}

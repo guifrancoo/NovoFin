@@ -201,6 +201,16 @@ router.patch('/group/:group_id', (req, res) => {
   res.json(updated);
 });
 
+// PATCH /api/expenses/:id/check  – toggle is_checked flag
+router.patch('/:id/check', (req, res) => {
+  const uf = userFilter(req);
+  const existing = db.prepare(`SELECT * FROM expenses WHERE id = ?${uf.sql}`).get(req.params.id, ...uf.params);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  const is_checked = req.body.is_checked ? 1 : 0;
+  db.prepare('UPDATE expenses SET is_checked = ? WHERE id = ?').run(is_checked, req.params.id);
+  res.json({ id: Number(req.params.id), is_checked });
+});
+
 // PATCH /api/expenses/:id  – update a single row
 router.patch('/:id', (req, res) => {
   const uf = userFilter(req);

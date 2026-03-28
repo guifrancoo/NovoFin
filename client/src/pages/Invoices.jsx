@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
   getInvoices, getPaymentMethods, getCategories,
-  createExpense, updateExpense, updateGroup, deleteGroup, fmtCurrency, fmtDate,
+  createExpense, updateExpense, updateGroup, deleteGroup,
+  checkExpense, fmtCurrency, fmtDate,
 } from '../api';
 
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-colors';
@@ -167,10 +168,21 @@ export default function Invoices() {
   const [editingExpense, setEditingExpense] = useState(null);
   const [methods, setMethods]               = useState([]);
   const [categories, setCats]               = useState([]);
+  const [checkedMap, setCheckedMap]         = useState({});
 
   const loadInvoices = () => {
     setLoading(true);
-    getInvoices().then((r) => setData(r.data)).finally(() => setLoading(false));
+    getInvoices().then((r) => {
+      setData(r.data);
+      // Inicializar mapa de conferência a partir do banco
+      const map = {};
+      Object.values(r.data).forEach((monthMap) => {
+        Object.values(monthMap).forEach((info) => {
+          info.expenses.forEach((e) => { map[e.id] = !!e.is_checked; });
+        });
+      });
+      setCheckedMap(map);
+    }).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -182,6 +194,16 @@ export default function Invoices() {
 
   const toggle = (key) => setExpanded((p) => ({ ...p, [key]: !p[key] }));
   const handleSaved = () => { setEditingExpense(null); loadInvoices(); };
+
+  const handleCheck = async (expenseId, current) => {
+    const next = !current;
+    setCheckedMap((prev) => ({ ...prev, [expenseId]: next }));
+    try {
+      await checkExpense(expenseId, next);
+    } catch (_) {
+      setCheckedMap((prev) => ({ ...prev, [expenseId]: current }));
+    }
+  };
 
   if (loading || !data) {
     return (
@@ -274,6 +296,9 @@ export default function Invoices() {
                   .toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                 const isOpen = expanded[key];
 
+                const checkedCount = info.expenses.filter((e) => checkedMap[e.id] ?? !!e.is_checked).length;
+                const totalCount   = info.expenses.length;
+
                 return (
                   <div key={month}>
                     {/* Linha do mês */}
@@ -286,7 +311,14 @@ export default function Invoices() {
                         </div>
                         <div className="text-left">
                           <div className="text-sm font-medium text-navy capitalize">{label}</div>
-                          <div className="text-xs text-gray-400">{info.expenses.length} lançamento{info.expenses.length !== 1 ? 's' : ''}</div>
+                          <div className="flex items-center gap-2 text-xs text-gray-400">
+                            <span>{totalCount} lançamento{totalCount !== 1 ? 's' : ''}</span>
+                            {checkedCount > 0 && (
+                              <span className="text-green-600 font-medium">
+                                {checkedCount}/{totalCount} conferido{checkedCount !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
@@ -304,15 +336,17 @@ export default function Invoices() {
                       <div className="border-t border-gray-50 overflow-x-auto">
                         <table className="w-full table-fixed">
                           <colgroup>
-                            <col style={{ width: '28%' }} />
-                            <col style={{ width: '38%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '24%' }} />
+                            <col style={{ width: '30%' }} />
                             <col className="hidden md:table-column" style={{ width: '0%' }} />
-                            <col style={{ width: '14%' }} />
-                            <col style={{ width: '20%' }} />
+                            <col style={{ width: '12%' }} />
+                            <col style={{ width: '18%' }} />
                             <col className="hidden md:table-column" style={{ width: '0%' }} />
                           </colgroup>
                           <thead>
                             <tr className="bg-gray-50/80">
+                              <th className="px-3 py-2.5 w-8"></th>
                               <th className="text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide whitespace-nowrap">Vencimento</th>
                               <th className="text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide">Local</th>
                               <th className="hidden md:table-cell text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide">Categoria</th>
@@ -322,52 +356,78 @@ export default function Invoices() {
                             </tr>
                           </thead>
                           <tbody>
-                            {info.expenses.map((e) => (
-                              <tr key={e.id}
-                                className={`border-t border-gray-50 group transition-colors ${
-                                  e.is_international ? 'bg-amber-50/40 hover:bg-amber-50' : 'hover:bg-gray-50/60'
-                                }`}>
-                                <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDate(e.due_date)}</td>
-                                <td className="px-3 py-3">
-                                  <div className="flex items-center gap-1.5">
-                                    {!!e.is_international && <span className="text-xs">🌍</span>}
-                                    <span className="text-xs text-navy font-medium truncate">{e.location || '—'}</span>
-                                  </div>
-                                </td>
-                                <td className="hidden md:table-cell px-3 py-3">
-                                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                                    {e.category}{e.subcategory ? ` › ${e.subcategory}` : ''}
-                                  </span>
-                                </td>
-                                <td className="px-3 py-3 text-center">
-                                  {e.installments > 1 ? (
-                                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full font-medium">
-                                      {e.installment_number}/{e.installments}
+                            {info.expenses.map((e) => {
+                              const isChecked = checkedMap[e.id] ?? !!e.is_checked;
+                              return (
+                                <tr key={e.id}
+                                  className={`border-t border-gray-50 group transition-colors ${
+                                    isChecked
+                                      ? 'bg-green-50/70 hover:bg-green-50'
+                                      : e.is_international
+                                        ? 'bg-amber-50/40 hover:bg-amber-50'
+                                        : 'hover:bg-gray-50/60'
+                                  }`}>
+                                  {/* Checkbox de conferência */}
+                                  <td className="px-2 py-3 text-center">
+                                    <button
+                                      onClick={() => handleCheck(e.id, isChecked)}
+                                      title={isChecked ? 'Desmarcar' : 'Marcar como conferido'}
+                                      className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${
+                                        isChecked
+                                          ? 'bg-green-500 border-green-500 text-white'
+                                          : 'border-gray-300 text-transparent hover:border-green-400 hover:text-green-300'
+                                      }`}>
+                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                      </svg>
+                                    </button>
+                                  </td>
+                                  <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDate(e.due_date)}</td>
+                                  <td className="px-3 py-3">
+                                    <div className="flex items-center gap-1.5">
+                                      {!!e.is_international && <span className="text-xs">🌍</span>}
+                                      <span className="text-xs text-navy font-medium truncate">{e.location || '—'}</span>
+                                    </div>
+                                  </td>
+                                  <td className="hidden md:table-cell px-3 py-3">
+                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                                      {e.category}{e.subcategory ? ` › ${e.subcategory}` : ''}
                                     </span>
-                                  ) : (
-                                    <span className="text-xs text-gray-300">—</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-3 text-right text-xs font-semibold text-navy whitespace-nowrap">
-                                  {fmtCurrency(Math.abs(e.installment_amount))}
-                                </td>
-                                <td className="hidden md:table-cell px-3 py-3">
-                                  <button onClick={() => setEditingExpense(e)}
-                                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                    </svg>
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
+                                  </td>
+                                  <td className="px-3 py-3 text-center">
+                                    {e.installments > 1 ? (
+                                      <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full font-medium">
+                                        {e.installment_number}/{e.installments}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-gray-300">—</span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-3 text-right text-xs font-semibold text-navy whitespace-nowrap">
+                                    {fmtCurrency(Math.abs(e.installment_amount))}
+                                  </td>
+                                  <td className="hidden md:table-cell px-3 py-3">
+                                    <button onClick={() => setEditingExpense(e)}
+                                      className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all">
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                      </svg>
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                           {/* Subtotal do mês */}
                           <tfoot>
                             <tr className="border-t border-gray-100 bg-gray-50/50">
+                              <td className="px-3 py-2.5" />
                               <td colSpan={2} className="px-3 py-2.5 text-xs text-gray-400">
-                                {info.expenses.length} lançamento{info.expenses.length !== 1 ? 's' : ''}
+                                {totalCount} lançamento{totalCount !== 1 ? 's' : ''}
+                                {checkedCount > 0 && (
+                                  <span className="ml-2 text-green-600">• {checkedCount}/{totalCount} conferido{checkedCount !== 1 ? 's' : ''}</span>
+                                )}
                               </td>
                               <td className="hidden md:table-cell" />
                               <td className="hidden md:table-cell" />
