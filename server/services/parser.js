@@ -98,6 +98,7 @@ function detectType(text, category) {
 }
 
 function parseInstallments(text) {
+  console.log('[parser] parseInstallments input:', JSON.stringify(text));
   const patterns = [
     /\bem\s+(\d+)\s+vezes\b/i,
     /\bparcelado\s+em\s+(\d+)\b/i,
