@@ -77,6 +77,11 @@ export const getAllSubcategories = ()           => api.get('/subcategories');
 export const createSubcategory  = (data)       => api.post('/subcategories', data);
 export const deleteSubcategory  = (id)         => api.delete(`/subcategories/${id}`);
 
+// WhatsApp linking
+export const getWhatsappStatus  = ()     => api.get('/users/whatsapp/status');
+export const generateLinkCode   = ()     => api.post('/users/whatsapp/link-code');
+export const unlinkWhatsapp     = ()     => api.delete('/users/whatsapp/unlink');
+
 // Cutoff dates
 export const getCutoffDates    = (pmId) => api.get('/cutoff-dates', { params: { payment_method_id: pmId } });
 export const getAllCutoffDates = ()     => api.get('/cutoff-dates');

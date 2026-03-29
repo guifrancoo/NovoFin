@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { updateProfile, getUsers, createUser, deleteUser, getMe } from '../api';
+import { updateProfile, getUsers, createUser, deleteUser, getMe, getWhatsappStatus, generateLinkCode, unlinkWhatsapp } from '../api';
 
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-colors';
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1';
@@ -94,6 +94,40 @@ export default function Profile() {
     } catch (err) {
       setUserError(err.response?.data?.error || 'Erro ao excluir usuário.');
     }
+  };
+
+  // ── WhatsApp ───────────────────────────────────────────────────────────────
+  const [waStatus, setWaStatus]     = useState(null);  // null | { linked, phone }
+  const [waCode, setWaCode]         = useState('');
+  const [waLoading, setWaLoading]   = useState(false);
+  const [waError, setWaError]       = useState('');
+
+  useEffect(() => {
+    getWhatsappStatus()
+      .then((res) => setWaStatus(res.data))
+      .catch(() => {});
+  }, []);
+
+  const handleGenerateCode = async () => {
+    setWaError(''); setWaCode(''); setWaLoading(true);
+    try {
+      const res = await generateLinkCode();
+      setWaCode(res.data.code);
+    } catch (err) {
+      setWaError(err.response?.data?.error || 'Erro ao gerar código.');
+    } finally { setWaLoading(false); }
+  };
+
+  const handleUnlink = async () => {
+    if (!confirm('Desvincular o WhatsApp desta conta?')) return;
+    setWaError(''); setWaLoading(true);
+    try {
+      await unlinkWhatsapp();
+      setWaStatus({ linked: false, phone: null });
+      setWaCode('');
+    } catch (err) {
+      setWaError(err.response?.data?.error || 'Erro ao desvincular.');
+    } finally { setWaLoading(false); }
   };
 
   const initials = currentUsername.charAt(0).toUpperCase();
@@ -228,6 +262,64 @@ export default function Profile() {
             </div>
           </div>
         )}
+        {/* WhatsApp */}
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <div className="text-sm font-semibold text-navy">WhatsApp</div>
+          </div>
+          <div className="p-5 space-y-3">
+            {waError && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{waError}</p>}
+
+            {waStatus === null ? (
+              <p className="text-xs text-gray-400 animate-pulse">Verificando status...</p>
+            ) : waStatus.linked ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium bg-green-50 text-green-700 px-2.5 py-1 rounded-full">
+                    ✓ WhatsApp vinculado
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Número: <span className="font-medium text-navy">{waStatus.phone}</span>
+                </p>
+                <button
+                  onClick={handleUnlink}
+                  disabled={waLoading}
+                  className="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm hover:bg-red-50 disabled:opacity-50 transition-colors"
+                >
+                  {waLoading ? 'Desvinculando...' : 'Desvincular'}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-500">
+                  Vincule seu WhatsApp para registrar lançamentos por mensagem.
+                </p>
+                <button
+                  onClick={handleGenerateCode}
+                  disabled={waLoading}
+                  className="px-4 py-2 rounded-lg bg-navy text-white text-sm hover:bg-navy-light disabled:opacity-50 transition-colors"
+                >
+                  {waLoading ? 'Gerando...' : 'Gerar código de vinculação'}
+                </button>
+                {waCode && (
+                  <div className="space-y-2">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                      <p className="text-xs text-amber-700 font-medium mb-1">Seu código:</p>
+                      <p className="text-2xl font-bold tracking-widest text-amber-800">{waCode}</p>
+                      <p className="text-xs text-amber-600 mt-1">válido por 15 minutos</p>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Envie <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">/vincular {waCode}</span> no WhatsApp para o número{' '}
+                      <span className="font-medium text-navy">+1 415 523 8886</span>.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );
