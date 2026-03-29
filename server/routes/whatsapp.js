@@ -46,18 +46,31 @@ function fmtDate(iso) {
 }
 
 // ─── Save confirmed expense ────────────────────────────────────────────────────
-function saveExpense(userId, data) {
-  const { amount, location, category, date, type, paymentMethod = 'Dinheiro' } = data;
-  const signedAmount = type === 'receita' ? Math.abs(amount) : -Math.abs(amount);
-  const groupId      = `wa-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+function addMonths(isoDate, n) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dt = new Date(y, m - 1 + n, d);
+  return dt.toISOString().split('T')[0];
+}
 
-  db.prepare(`
+function saveExpense(userId, data) {
+  const { amount, location, category, date, type,
+          paymentMethod = 'Dinheiro', installments = 1 } = data;
+  const signedAmount      = type === 'receita' ? Math.abs(amount) : -Math.abs(amount);
+  const installmentAmount = signedAmount / installments;
+  const groupId           = `wa-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  const stmt = db.prepare(`
     INSERT INTO expenses
       (group_id, purchase_date, due_date, category, location, payment_method,
        total_amount, installments, installment_number, installment_amount, user_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
-  `).run(groupId, date, date, category, location, paymentMethod,
-         signedAmount, signedAmount, userId);
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  for (let i = 0; i < installments; i++) {
+    const dueDate = i === 0 ? date : addMonths(date, i);
+    stmt.run(groupId, date, dueDate, category, location, paymentMethod,
+             signedAmount, installments, i + 1, installmentAmount, userId);
+  }
 }
 
 // ─── Monthly balance query ─────────────────────────────────────────────────────
@@ -99,9 +112,15 @@ function getCategorySummary(userId) {
 
 // ─── Confirmation message builder ──────────────────────────────────────────────
 function buildConfirmationMessage(parsed) {
-  const emoji = parsed.type === 'receita' ? '💰' : '💸';
-  const tipo  = parsed.type === 'receita' ? 'Receita' : 'Despesa';
-  const valor = parsed.amount ? fmtBRL(parsed.amount) : '❓ (não detectado)';
+  const emoji  = parsed.type === 'receita' ? '💰' : '💸';
+  const tipo   = parsed.type === 'receita' ? 'Receita' : 'Despesa';
+  const valor  = parsed.amount ? fmtBRL(parsed.amount) : '❓ (não detectado)';
+  const method = parsed.paymentMethod || 'Dinheiro';
+  const installments = parsed.installments || 1;
+
+  const installmentLine = installments > 1
+    ? `🔢 *Parcelas:* ${installments}x de ${fmtBRL(parsed.amount / installments)}\n`
+    : '';
 
   return (
     `${emoji} *${tipo} detectada!*\n\n` +
@@ -109,8 +128,9 @@ function buildConfirmationMessage(parsed) {
     `💵 *Valor:* ${valor}\n` +
     `📂 *Categoria:* ${parsed.category}\n` +
     `📅 *Data:* ${fmtDate(parsed.date)}\n` +
-    `💳 *Método:* Dinheiro\n\n` +
-    `Responda *sim* para confirmar ou *não* para cancelar.`
+    `💳 *Método:* ${method}\n` +
+    installmentLine +
+    `\nResponda *sim* para confirmar ou *não* para cancelar.`
   );
 }
 
