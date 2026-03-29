@@ -1,3 +1,5 @@
+const { db } = require('../database');
+
 // ─── Category keyword map ──────────────────────────────────────────────────────
 const CATEGORY_KEYWORDS = {
   'Alimentação':   ['restaurante','lanche','almoço','jantar','café','cafeteria','comida',
@@ -95,13 +97,50 @@ function detectType(text, category) {
   return 'despesa';
 }
 
+function parseInstallments(text) {
+  const patterns = [
+    /\bem\s+(\d+)\s+vezes\b/i,
+    /\bparcelado\s+em\s+(\d+)\b/i,
+    /\b(\d+)\s*x\b/i,
+    /\b(\d+)\s+vezes\b/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > 1 && n <= 72) return n;
+    }
+  }
+  return 1;
+}
+
+function getCreditCardMethod() {
+  try {
+    const row = db.prepare(
+      'SELECT name FROM payment_methods WHERE is_card = 1 ORDER BY id ASC LIMIT 1'
+    ).get();
+    return row?.name || null;
+  } catch (_) {
+    return null;
+  }
+}
+
 function extractLocation(text) {
-  // Strip amount / date / filler patterns
   let clean = text
+    // Remove installment patterns before anything else
+    .replace(/\bparcelado\s+em\s+\d+\b/gi, '')
+    .replace(/\bem\s+\d+\s*(?:vezes|x)\b/gi, '')
+    .replace(/\b\d+\s*x\b/gi, '')
+    .replace(/\b\d+\s+vezes\b/gi, '')
+    // Remove amounts (R$, "reais")
     .replace(/R\$\s*[\d.,]+/gi, '')
     .replace(/[\d]+(?:[.,]\d{1,2})?\s*reais/gi, '')
+    // Remove dates
     .replace(/\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?/g, '')
-    .replace(/\b(hoje|ontem|paguei|gastei|comprei|recebi|fiz|no|na|em|de|do|da|um|uma|os|as)\b/gi, '')
+    // Remove filler/action/connector words including price connectors
+    .replace(/\b(hoje|ontem|paguei|gastei|comprei|recebi|fiz|no|na|em|de|do|da|um|uma|os|as|por|vezes|reais|valor)\b/gi, '')
+    // Remove any remaining bare numbers
+    .replace(/\b\d+\b/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -114,15 +153,27 @@ function extractLocation(text) {
 /**
  * Parses a Portuguese text message and extracts financial transaction data.
  * @param {string} text
- * @returns {{ amount: number|null, location: string, category: string, date: string, type: 'despesa'|'receita' }}
+ * @returns {{ amount: number|null, location: string, category: string, date: string, type: 'despesa'|'receita', installments: number, paymentMethod: string }}
  */
 function parse(text) {
-  const amount   = parseAmount(text);
-  const date     = parseDate(text);
-  const category = suggestCategory(text);
-  const type     = detectType(text, category);
-  const location = extractLocation(text);
-  return { amount, location, category, date, type };
+  const amount       = parseAmount(text);
+  const date         = parseDate(text);
+  const category     = suggestCategory(text);
+  const type         = detectType(text, category);
+  const location     = extractLocation(text);
+  const installments = parseInstallments(text);
+
+  let paymentMethod = 'Dinheiro';
+  if (installments > 1) {
+    const card = getCreditCardMethod();
+    if (card) {
+      paymentMethod = card;
+    } else {
+      console.warn('[parser] parcelamento detectado mas nenhum cartão de crédito encontrado — usando Dinheiro');
+    }
+  }
+
+  return { amount, location, category, date, type, installments, paymentMethod };
 }
 
 module.exports = { parse };
