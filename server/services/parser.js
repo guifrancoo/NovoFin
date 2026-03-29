@@ -119,8 +119,10 @@ function getCreditCardMethod() {
     const row = db.prepare(
       'SELECT name FROM payment_methods WHERE is_card = 1 ORDER BY id ASC LIMIT 1'
     ).get();
+    console.log('[parser] getCreditCardMethod query result:', row);
     return row?.name || null;
-  } catch (_) {
+  } catch (err) {
+    console.log('[parser] getCreditCardMethod error:', err.message);
     return null;
   }
 }
@@ -173,6 +175,7 @@ function parse(text) {
     }
   }
 
+  console.log('[parser] installments:', installments, '| paymentMethod:', paymentMethod);
   return { amount, location, category, date, type, installments, paymentMethod };
 }
 
