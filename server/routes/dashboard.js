@@ -55,14 +55,13 @@ router.get('/', (req, res) => {
 
   const byCategory = db.prepare(`
     SELECT category,
-           ABS(COALESCE(SUM(installment_amount), 0)) AS total
+           COALESCE(SUM(installment_amount), 0) AS total
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND installment_amount < 0
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
       ${uf.sql}
     GROUP BY category
-    ORDER BY total DESC
+    ORDER BY total ASC
   `).all(startDate, endDate, ...uf.params);
 
   const recent = db.prepare(`

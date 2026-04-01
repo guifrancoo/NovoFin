@@ -54,7 +54,9 @@ function CustomTooltip({ active, payload, grandTotal }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 shadow-sm text-xs">
       <div className="font-medium text-navy mb-1">{category}</div>
-      <div className="text-gray-600">{fmtCurrency(total)} <span className="text-gray-400">({pct}%)</span></div>
+      <div className={total < 0 ? 'text-danger' : 'text-success'}>
+        {total < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(total))} <span className="text-gray-400">({pct}%)</span>
+      </div>
     </div>
   );
 }
@@ -99,7 +101,10 @@ export default function Reports() {
     }).finally(() => setLoading(false));
   }, [start, end]);
 
-  const grandTotal   = byCategory.reduce((s, r) => s + r.total, 0);
+  const grandAbsTotal = byCategory.reduce((s, r) => s + Math.abs(r.total), 0);
+  const grandNetTotal = byCategory.reduce((s, r) => s + r.total, 0);
+  const grandTotal    = grandAbsTotal; // kept for bar chart label compatibility
+  const chartData     = byCategory.map((r) => ({ ...r, totalAbs: Math.abs(r.total) }));
   const toggleCat    = (cat) => setExpanded((p) => ({ ...p, [cat]: !p[cat] }));
   const barChartH    = Math.max(220, byCategory.length * 34);
   const methodTotal  = byMethod.reduce((s, r) => s + r.total, 0);
@@ -132,20 +137,20 @@ export default function Reports() {
                   <div className="h-40 flex items-center justify-center text-sm text-gray-400">Sem dados</div>
                 ) : (
                   <ResponsiveContainer width="100%" height={barChartH}>
-                    <BarChart layout="vertical" data={byCategory}
+                    <BarChart layout="vertical" data={chartData}
                       margin={{ top: 0, right: 60, left: 0, bottom: 0 }}>
                       <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false}
                         tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                       <YAxis type="category" dataKey="category" tick={{ fontSize: 11, fill: '#374151' }}
                         width={140} axisLine={false} tickLine={false} />
-                      <Tooltip content={<CustomTooltip grandTotal={grandTotal} />} />
-                      <Bar dataKey="total" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                        {byCategory.map((_, i) => (
+                      <Tooltip content={<CustomTooltip grandTotal={grandAbsTotal} />} />
+                      <Bar dataKey="totalAbs" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                        {chartData.map((_, i) => (
                           <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]} />
                         ))}
-                        <LabelList dataKey="total" position="right"
+                        <LabelList dataKey="totalAbs" position="right"
                           formatter={(v) => {
-                            const pct = grandTotal > 0 ? ((v / grandTotal) * 100).toFixed(0) : '0';
+                            const pct = grandAbsTotal > 0 ? ((v / grandAbsTotal) * 100).toFixed(0) : '0';
                             return `${pct}%`;
                           }}
                           style={{ fontSize: 10, fill: '#9ca3af' }} />
@@ -176,7 +181,7 @@ export default function Reports() {
                     </thead>
                     <tbody>
                       {byCategory.map((r, i) => {
-                        const pct = grandTotal > 0 ? ((r.total / grandTotal) * 100).toFixed(1) : '0.0';
+                        const pct = grandAbsTotal > 0 ? ((Math.abs(r.total) / grandAbsTotal) * 100).toFixed(1) : '0.0';
                         const hasSubcats = r.subcategories?.length > 0;
                         const isOpen = expanded[r.category];
                         const color = CAT_COLORS[i % CAT_COLORS.length];
@@ -198,11 +203,13 @@ export default function Reports() {
                                   )}
                                 </div>
                               </td>
-                              <td className="px-3 py-3 text-right text-sm font-medium text-navy whitespace-nowrap">{fmtCurrency(r.total)}</td>
+                              <td className={`px-3 py-3 text-right text-sm font-medium whitespace-nowrap ${r.total < 0 ? 'text-danger' : 'text-success'}`}>
+                                {r.total < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(r.total))}
+                              </td>
                               <td className="px-5 py-3 text-right text-xs text-gray-500">{pct}%</td>
                             </tr>
                             {isOpen && r.subcategories.map((s) => {
-                              const sPct = r.total > 0 ? ((s.total / r.total) * 100).toFixed(1) : '0.0';
+                              const sPct = r.total !== 0 ? ((Math.abs(s.total) / Math.abs(r.total)) * 100).toFixed(1) : '0.0';
                               return (
                                 <tr key={s.subcategory} className="border-b border-gray-50 bg-gray-50/40">
                                   <td className="px-5 py-2 pl-12">
@@ -211,7 +218,9 @@ export default function Reports() {
                                       <span className="text-xs text-gray-500">{s.subcategory}</span>
                                     </div>
                                   </td>
-                                  <td className="px-3 py-2 text-right text-xs text-gray-600">{fmtCurrency(s.total)}</td>
+                                  <td className={`px-3 py-2 text-right text-xs ${s.total < 0 ? 'text-danger' : 'text-success'}`}>
+                                    {s.total < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(s.total))}
+                                  </td>
                                   <td className="px-5 py-2 text-right text-xs text-gray-400">{sPct}%</td>
                                 </tr>
                               );
@@ -223,7 +232,9 @@ export default function Reports() {
                     <tfoot>
                       <tr className="border-t border-gray-200 bg-gray-50/50">
                         <td className="px-5 py-3 text-sm font-semibold text-navy">Total</td>
-                        <td className="px-3 py-3 text-right text-sm font-semibold text-navy">{fmtCurrency(grandTotal)}</td>
+                        <td className={`px-3 py-3 text-right text-sm font-semibold ${grandNetTotal < 0 ? 'text-danger' : 'text-success'}`}>
+                          {grandNetTotal < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(grandNetTotal))}
+                        </td>
                         <td className="px-5 py-3 text-right text-xs text-gray-500">100%</td>
                       </tr>
                     </tfoot>

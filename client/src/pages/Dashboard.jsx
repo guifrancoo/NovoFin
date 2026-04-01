@@ -418,7 +418,9 @@ export default function Dashboard() {
     : month.split('-').reverse().join('/');
 
   const maxExpense = Math.max(data.income, data.expense, 1);
-  const maxCatTotal = data.by_category?.[0]?.total ? Math.abs(data.by_category[0].total) : 1;
+  const maxCatTotal = data.by_category?.length > 0
+    ? Math.max(...data.by_category.map((r) => Math.abs(r.total)), 1)
+    : 1;
 
   return (
     <>
@@ -603,7 +605,9 @@ export default function Dashboard() {
                             </div>
                           </td>
                           <td className="px-3 py-3 text-right text-xs text-gray-500">{pct.toFixed(1)}%</td>
-                          <td className="px-5 py-3 text-right text-sm font-medium text-navy whitespace-nowrap">{fmtCurrency(Math.abs(row.total))}</td>
+                          <td className={`px-5 py-3 text-right text-sm font-medium whitespace-nowrap ${row.total < 0 ? 'text-danger' : 'text-success'}`}>
+                            {row.total < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(row.total))}
+                          </td>
                         </tr>
                       );
                     })}

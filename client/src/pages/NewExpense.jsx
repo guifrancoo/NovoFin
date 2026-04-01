@@ -193,7 +193,15 @@ export default function NewExpense() {
               </div>
             )}
 
-            {/* 4. Método de pagamento */}
+            {/* 4. Local / Estabelecimento */}
+            <div>
+              <label className={labelCls}>{isReceita ? 'Origem / Fonte' : 'Local / Estabelecimento'}</label>
+              <input type="text" value={form.location} onChange={set('location')}
+                placeholder={isReceita ? 'Ex: Empresa XYZ' : 'Ex: Supermercado Extra'}
+                className={inputCls} />
+            </div>
+
+            {/* 5. Método de pagamento */}
             <div>
               <label className={labelCls}>{isReceita ? 'Conta de destino' : 'Método de pagamento'}</label>
               <select value={form.payment_method} onChange={set('payment_method')} required className={inputCls}>
@@ -210,7 +218,7 @@ export default function NewExpense() {
               )}
             </div>
 
-            {/* 5. Compra internacional */}
+            {/* 6. Compra internacional */}
             {!isReceita && (
               <div className="flex items-center gap-3 py-1">
                 <button type="button"
@@ -253,15 +261,7 @@ export default function NewExpense() {
               </div>
             )}
 
-            {/* Local */}
-            <div>
-              <label className={labelCls}>{isReceita ? 'Origem / Fonte' : 'Local / Estabelecimento'}</label>
-              <input type="text" value={form.location} onChange={set('location')}
-                placeholder={isReceita ? 'Ex: Empresa XYZ' : 'Ex: Supermercado Extra'}
-                className={inputCls} />
-            </div>
-
-            {/* 8. Descrição */}
+            {/* 9. Descrição */}
             <div>
               <label className={labelCls}>Descrição <span className="text-gray-400 font-normal">(opcional)</span></label>
               <input type="text" value={form.description} onChange={set('description')}

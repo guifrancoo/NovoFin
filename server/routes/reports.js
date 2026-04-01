@@ -21,30 +21,28 @@ router.get('/by-category', (req, res) => {
 
   const catRows = db.prepare(`
     SELECT category,
-           ABS(COALESCE(SUM(installment_amount), 0)) AS total,
+           COALESCE(SUM(installment_amount), 0) AS total,
            COUNT(*) AS count
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND installment_amount < 0
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
       ${uf.sql}
     GROUP BY category
-    ORDER BY total DESC
+    ORDER BY total ASC
   `).all(startDate, endDate, ...uf.params);
 
   // Subcategory breakdown per category
   const subRows = db.prepare(`
     SELECT category, subcategory,
-           ABS(COALESCE(SUM(installment_amount), 0)) AS total,
+           COALESCE(SUM(installment_amount), 0) AS total,
            COUNT(*) AS count
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND installment_amount < 0
       AND subcategory IS NOT NULL
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
       ${uf.sql}
     GROUP BY category, subcategory
-    ORDER BY category, total DESC
+    ORDER BY category, total ASC
   `).all(startDate, endDate, ...uf.params);
 
   const subMap = {};
