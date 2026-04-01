@@ -24,7 +24,10 @@ async function uploadAudio(buffer) {
     },
     body: buffer,
   });
-  if (!res.ok) throw new Error(`AssemblyAI upload failed: ${res.status}`);
+  if (!res.ok) {
+    console.log('[assemblyai] upload response:', res.status, await res.text());
+    throw new Error(`AssemblyAI upload failed: ${res.status}`);
+  }
   const { upload_url } = await res.json();
   return upload_url;
 }
@@ -42,9 +45,10 @@ async function submitTranscript(audioUrl) {
       language_code: 'pt',
     }),
   });
+  const data = await res.json();
+  console.log('[assemblyai] submit response:', res.status, JSON.stringify(data));
   if (!res.ok) throw new Error(`AssemblyAI submit failed: ${res.status}`);
-  const { id } = await res.json();
-  return id;
+  return data.id;
 }
 
 /**

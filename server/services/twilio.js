@@ -31,6 +31,7 @@ async function downloadMedia(url) {
     headers: { Authorization: `Basic ${creds}` },
   });
 
+  console.log('[twilio] downloading media from:', url, '| response status:', res.status);
   if (!res.ok) throw new Error(`Failed to download media: ${res.status}`);
   return res.buffer();
 }
