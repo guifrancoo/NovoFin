@@ -1,15 +1,4 @@
-const fetch  = require('node-fetch');
-const jsQR   = require('jsqr');
-
-// canvas is a native module — requires build tools (Python, node-gyp).
-// Falls back gracefully if not available.
-let createCanvas, loadImage;
-try {
-  ({ createCanvas, loadImage } = require('canvas'));
-} catch (_) {
-  console.warn('[nf] canvas module not available — QR code reading disabled');
-}
-console.log('[nf] canvas available:', !!createCanvas);
+const jsQR = require('jsqr');
 
 // ─── QR Code reader ────────────────────────────────────────────────────────────
 /**
@@ -17,17 +6,19 @@ console.log('[nf] canvas available:', !!createCanvas);
  * Returns the decoded string, or null if no QR code found.
  */
 async function readQRCode(imageBuffer) {
-  if (!createCanvas || !loadImage) {
-    throw new Error('canvas module not installed. Run: npm install canvas');
-  }
+  const sharp = require('sharp');
 
-  const img    = await loadImage(imageBuffer);
-  const canvas = createCanvas(img.width, img.height);
-  const ctx    = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0);
+  // Convert to raw RGBA pixels using sharp
+  const { data, info } = await sharp(imageBuffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-  const { data, width, height } = ctx.getImageData(0, 0, img.width, img.height);
-  const code = jsQR(data, width, height);
+  const code = jsQR(
+    new Uint8ClampedArray(data.buffer),
+    info.width,
+    info.height
+  );
   return code ? code.data : null;
 }
 
