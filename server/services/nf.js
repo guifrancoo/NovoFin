@@ -7,19 +7,30 @@ const jsQR = require('jsqr');
  */
 async function readQRCode(imageBuffer) {
   const sharp = require('sharp');
+  const attempts = [
+    // Attempt 1: grayscale + high contrast
+    () => sharp(imageBuffer).grayscale().normalise().ensureAlpha().raw().toBuffer({ resolveWithObject: true }),
+    // Attempt 2: grayscale + sharpen + threshold
+    () => sharp(imageBuffer).grayscale().sharpen().threshold(128).ensureAlpha().raw().toBuffer({ resolveWithObject: true }),
+    // Attempt 3: resize larger + grayscale (helps with small QR codes)
+    () => sharp(imageBuffer).resize(1200, 1200, { fit: 'inside' }).grayscale().normalise().ensureAlpha().raw().toBuffer({ resolveWithObject: true }),
+    // Attempt 4: raw with no processing (original behavior)
+    () => sharp(imageBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true }),
+  ];
 
-  // Convert to raw RGBA pixels using sharp
-  const { data, info } = await sharp(imageBuffer)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const code = jsQR(
-    new Uint8ClampedArray(data.buffer),
-    info.width,
-    info.height
-  );
-  return code ? code.data : null;
+  for (let i = 0; i < attempts.length; i++) {
+    try {
+      const { data, info } = await attempts[i]();
+      const code = jsQR(new Uint8ClampedArray(data.buffer), info.width, info.height);
+      if (code) {
+        console.log(`[nf] QR code found on attempt ${i + 1}`);
+        return code.data;
+      }
+    } catch (err) {
+      console.warn(`[nf] attempt ${i + 1} failed:`, err.message);
+    }
+  }
+  return null;
 }
 
 // ─── Chave de acesso extractor ─────────────────────────────────────────────────
