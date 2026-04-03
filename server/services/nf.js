@@ -9,6 +9,7 @@ try {
 } catch (_) {
   console.warn('[nf] canvas module not available — QR code reading disabled');
 }
+console.log('[nf] canvas available:', !!createCanvas);
 
 // ─── QR Code reader ────────────────────────────────────────────────────────────
 /**
