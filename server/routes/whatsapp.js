@@ -258,6 +258,10 @@ async function handleImage(mediaUrl, phone, userId) {
   await sendWhatsApp(phone, '🔍 Lendo a nota fiscal...');
   try {
     const buffer = await downloadMedia(mediaUrl);
+    const fs = require('fs');
+    const debugPath = `/tmp/twilio_image_${Date.now()}.jpg`;
+    fs.writeFileSync(debugPath, buffer);
+    console.log('[debug] image saved to:', debugPath, '| size:', buffer.length, 'bytes');
     const nfe    = await processNFe(buffer);
 
     if (!nfe.valor && !nfe.estabelecimento) {
