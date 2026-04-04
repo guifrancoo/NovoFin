@@ -137,8 +137,20 @@ function getAllCreditCards(userId) {
 function detectExplicitPaymentMethod(text) {
   const lower = text.toLowerCase();
 
-  // Cash keywords
+  // Cash / instant-payment keywords
   if (/\b(dinheiro|espécie|especie|pix|à vista|a vista)\b/.test(lower)) return 'Dinheiro';
+
+  // Debit keywords — resolve to registered debit card or fall back to Dinheiro
+  // (debit ≠ credit card, should never trigger card selection)
+  if (/\b(débito|debito|cartão de débito|cartao de debito|no débito|no debito)\b/.test(lower)) {
+    try {
+      const debit = db.prepare(
+        "SELECT name FROM payment_methods WHERE is_card = 0 OR card_type = 'debit' ORDER BY id ASC LIMIT 1"
+      ).get();
+      if (debit) return debit.name;
+    } catch (_) {}
+    return 'Dinheiro';
+  }
 
   // Card name keywords — fetch from DB to match registered cards
   try {
@@ -148,8 +160,8 @@ function detectExplicitPaymentMethod(text) {
     }
   } catch (_) {}
 
-  // Generic card keywords — will still need selection if multiple cards
-  if (/\b(cartão|cartao|crédito|credito|débito|debito)\b/.test(lower)) return '__CARD__';
+  // Generic credit card keywords — will need selection if multiple cards
+  if (/\b(cartão|cartao|crédito|credito)\b/.test(lower)) return '__CARD__';
 
   return null;
 }
