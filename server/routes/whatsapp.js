@@ -244,12 +244,18 @@ async function handleText(body, phone, userId) {
 
   waDb.savePendingSession(phone, parsed);
   if (parsed.needsCardSelection) {
-    const cardList = parsed.availableCards
-      .map((c, i) => `${i + 1}. ${c.name}`)
-      .join('\n');
-    return sendWhatsApp(phone,
-      `💳 *Qual cartão usar?*\n\n${cardList}\n\nResponda com o número do cartão (ex: *1*)`
-    );
+    if (parsed.availableCards && parsed.availableCards.length > 0) {
+      const cardList = parsed.availableCards
+        .map((c, i) => `${i + 1}. ${c.name}`)
+        .join('\n');
+      return sendWhatsApp(phone,
+        `💳 *Qual cartão usar?*\n\n${cardList}\n\nResponda com o número do cartão (ex: *1*)`
+      );
+    } else {
+      return sendWhatsApp(phone,
+        `💳 *Qual cartão de crédito foi usado?*\n\nDigite o nome do cartão (ex: Nubank, Inter, Itaú...)`
+      );
+    }
   }
   return sendWhatsApp(phone, buildConfirmationMessage(parsed));
 }
@@ -269,12 +275,18 @@ async function handleAudio(mediaUrl, phone, userId) {
 
     waDb.savePendingSession(phone, parsed);
     if (parsed.needsCardSelection) {
-      const cardList = parsed.availableCards
-        .map((c, i) => `${i + 1}. ${c.name}`)
-        .join('\n');
-      return sendWhatsApp(phone,
-        `💳 *Qual cartão usar?*\n\n${cardList}\n\nResponda com o número do cartão (ex: *1*)`
-      );
+      if (parsed.availableCards && parsed.availableCards.length > 0) {
+        const cardList = parsed.availableCards
+          .map((c, i) => `${i + 1}. ${c.name}`)
+          .join('\n');
+        return sendWhatsApp(phone,
+          `💳 *Qual cartão usar?*\n\n${cardList}\n\nResponda com o número do cartão (ex: *1*)`
+        );
+      } else {
+        return sendWhatsApp(phone,
+          `💳 *Qual cartão de crédito foi usado?*\n\nDigite o nome do cartão (ex: Nubank, Inter, Itaú...)`
+        );
+      }
     }
     return sendWhatsApp(phone, buildConfirmationMessage(parsed));
   } catch (err) {
