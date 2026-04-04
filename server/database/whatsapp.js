@@ -4,10 +4,11 @@ const { db } = require('../database');
 function initWhatsappTables() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS whatsapp_users (
-      id           INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      phone_number TEXT    NOT NULL UNIQUE,
-      created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+      id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id                INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      phone_number           TEXT    NOT NULL UNIQUE,
+      default_payment_method TEXT    DEFAULT NULL,
+      created_at             TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_wa_users_phone ON whatsapp_users(phone_number);
@@ -31,6 +32,9 @@ function initWhatsappTables() {
 
     CREATE INDEX IF NOT EXISTS idx_wa_sessions_phone ON whatsapp_sessions(phone_number);
   `);
+
+  // Migration for existing tables
+  try { db.prepare('ALTER TABLE whatsapp_users ADD COLUMN default_payment_method TEXT DEFAULT NULL').run(); } catch (_) {}
 }
 
 // ─── Linking ───────────────────────────────────────────────────────────────────
@@ -115,6 +119,17 @@ function clearSession(phoneNumber) {
   db.prepare('DELETE FROM whatsapp_sessions WHERE phone_number = ?').run(phoneNumber);
 }
 
+// ─── Default payment method ────────────────────────────────────────────────────
+
+function getDefaultPaymentMethod(phone) {
+  const row = db.prepare('SELECT default_payment_method FROM whatsapp_users WHERE phone_number = ?').get(phone);
+  return row?.default_payment_method || null;
+}
+
+function setDefaultPaymentMethod(phone, method) {
+  db.prepare('UPDATE whatsapp_users SET default_payment_method = ? WHERE phone_number = ?').run(method, phone);
+}
+
 module.exports = {
   initWhatsappTables,
   generateLinkCode,
@@ -123,4 +138,6 @@ module.exports = {
   savePendingSession,
   getPendingSession,
   clearSession,
+  getDefaultPaymentMethod,
+  setDefaultPaymentMethod,
 };

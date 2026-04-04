@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { updateProfile, getUsers, createUser, deleteUser, getMe, getWhatsappStatus, generateLinkCode, unlinkWhatsapp } from '../api';
+import { updateProfile, getUsers, createUser, deleteUser, getMe, getWhatsappStatus, generateLinkCode, unlinkWhatsapp, getWhatsappDefaultMethod, setWhatsappDefaultMethod, getPaymentMethods } from '../api';
 
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-colors';
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1';
@@ -97,16 +97,38 @@ export default function Profile() {
   };
 
   // ── WhatsApp ───────────────────────────────────────────────────────────────
-  const [waStatus, setWaStatus]     = useState(null);  // null | { linked, phone }
-  const [waCode, setWaCode]         = useState('');
-  const [waLoading, setWaLoading]   = useState(false);
-  const [waError, setWaError]       = useState('');
+  const [waStatus, setWaStatus]           = useState(null);  // null | { linked, phone }
+  const [waCode, setWaCode]               = useState('');
+  const [waLoading, setWaLoading]         = useState(false);
+  const [waError, setWaError]             = useState('');
+  const [waDefaultMethod, setWaDefaultMethod] = useState(null);
+  const [allMethods, setAllMethods]       = useState([]);
+  const [savingDefault, setSavingDefault] = useState(false);
+  const [defaultSuccess, setDefaultSuccess] = useState('');
 
   useEffect(() => {
     getWhatsappStatus()
       .then((res) => setWaStatus(res.data))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!waStatus?.linked) return;
+    getWhatsappDefaultMethod().then((res) => setWaDefaultMethod(res.data.defaultMethod)).catch(() => {});
+    getPaymentMethods().then((res) => setAllMethods(res.data)).catch(() => {});
+  }, [waStatus?.linked]);
+
+  const handleSaveDefault = async (method) => {
+    setSavingDefault(true); setDefaultSuccess('');
+    try {
+      await setWhatsappDefaultMethod(method);
+      setWaDefaultMethod(method);
+      setDefaultSuccess('Método padrão salvo!');
+      setTimeout(() => setDefaultSuccess(''), 3000);
+    } catch (err) {
+      setWaError(err.response?.data?.error || 'Erro ao salvar método padrão.');
+    } finally { setSavingDefault(false); }
+  };
 
   const handleGenerateCode = async () => {
     setWaError(''); setWaCode(''); setWaLoading(true);
@@ -282,6 +304,27 @@ export default function Profile() {
                 <p className="text-sm text-gray-600">
                   Número: <span className="font-medium text-navy">{waStatus.phone}</span>
                 </p>
+
+                {/* Default payment method */}
+                <div className="pt-2 border-t border-gray-100 space-y-2">
+                  <label className={labelCls}>Método de pagamento padrão</label>
+                  {defaultSuccess && <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-1.5">{defaultSuccess}</p>}
+                  <select
+                    value={waDefaultMethod || ''}
+                    onChange={(e) => handleSaveDefault(e.target.value)}
+                    disabled={savingDefault || allMethods.length === 0}
+                    className={inputCls}
+                  >
+                    <option value="" disabled>Selecione um método...</option>
+                    {allMethods.map((m) => (
+                      <option key={m.id} value={m.name}>{m.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-400">
+                    Usado automaticamente quando não mencionado na mensagem.
+                  </p>
+                </div>
+
                 <button
                   onClick={handleUnlink}
                   disabled={waLoading}

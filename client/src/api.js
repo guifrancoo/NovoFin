@@ -78,9 +78,11 @@ export const createSubcategory  = (data)       => api.post('/subcategories', dat
 export const deleteSubcategory  = (id)         => api.delete(`/subcategories/${id}`);
 
 // WhatsApp linking
-export const getWhatsappStatus  = ()     => api.get('/users/whatsapp/status');
-export const generateLinkCode   = ()     => api.post('/users/whatsapp/link-code');
-export const unlinkWhatsapp     = ()     => api.delete('/users/whatsapp/unlink');
+export const getWhatsappStatus        = ()       => api.get('/users/whatsapp/status');
+export const generateLinkCode         = ()       => api.post('/users/whatsapp/link-code');
+export const unlinkWhatsapp           = ()       => api.delete('/users/whatsapp/unlink');
+export const getWhatsappDefaultMethod = ()       => api.get('/users/whatsapp/default-method');
+export const setWhatsappDefaultMethod = (method) => api.put('/users/whatsapp/default-method', { method });
 
 // Cutoff dates
 export const getCutoffDates    = (pmId) => api.get('/cutoff-dates', { params: { payment_method_id: pmId } });

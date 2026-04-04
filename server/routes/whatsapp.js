@@ -2,6 +2,7 @@ const express      = require('express');
 const twilio       = require('twilio');
 const { db }       = require('../database');
 const waDb         = require('../database/whatsapp');
+const { getDefaultPaymentMethod, setDefaultPaymentMethod } = require('../database/whatsapp');
 const { sendWhatsApp, downloadMedia } = require('../services/twilio');
 const { parse }    = require('../services/parser');
 const { transcribe } = require('../services/assemblyai');
@@ -32,6 +33,11 @@ function validateTwilioSignature(req, res, next) {
 
   if (!valid) return res.status(403).send('Forbidden');
   next();
+}
+
+// ─── Payment method list ───────────────────────────────────────────────────────
+function getAllPaymentMethods() {
+  return db.prepare('SELECT id, name FROM payment_methods ORDER BY is_card DESC, id ASC').all();
 }
 
 // ─── Currency formatter ────────────────────────────────────────────────────────
@@ -190,6 +196,7 @@ async function handleAjuda(phone) {
     `📌 /vincular CODIGO — Vincula seu número ao NovoFin\n` +
     `💰 /saldo — Saldo do mês atual\n` +
     `📋 /resumo — Gastos por categoria\n` +
+    `💳 /padrao — Ver ou alterar método de pagamento padrão\n` +
     `❓ /ajuda — Esta mensagem\n\n` +
     `*Registrar gastos:*\n` +
     `Envie uma mensagem de texto descrevendo o gasto:\n` +
@@ -198,6 +205,29 @@ async function handleAjuda(phone) {
     `Envie um áudio descrevendo o gasto — será transcrito automaticamente.\n\n` +
     `*Nota Fiscal:*\n` +
     `Envie uma foto do QR code da nota fiscal para extrair os dados automaticamente.`);
+}
+
+async function handlePadrao(phone, args) {
+  const methods = getAllPaymentMethods();
+
+  // If user sent a number as argument (e.g. "/padrao 2")
+  const num = parseInt(args.trim());
+  if (!isNaN(num) && num >= 1 && num <= methods.length) {
+    const chosen = methods[num - 1].name;
+    setDefaultPaymentMethod(phone, chosen);
+    return sendWhatsApp(phone, `✅ Método padrão atualizado para *${chosen}*!`);
+  }
+
+  // Show current default and list
+  const current = getDefaultPaymentMethod(phone);
+  const methodList = methods.map((m, i) => `${i + 1}. ${m.name}${current === m.name ? ' ✅' : ''}`).join('\n');
+
+  return sendWhatsApp(phone,
+    `💳 *Método de pagamento padrão*\n\n` +
+    `${current ? `Atual: *${current}*` : 'Nenhum definido'}\n\n` +
+    `${methodList}\n\n` +
+    `Responda com o número para alterar.\nEx: */padrao 2*`
+  );
 }
 
 // ─── Text message handler ──────────────────────────────────────────────────────
@@ -209,10 +239,25 @@ async function handleText(body, phone, userId) {
   if (lower === '/saldo')  return handleSaldo(userId, phone);
   if (lower === '/resumo') return handleResumo(userId, phone);
   if (lower === '/ajuda')  return handleAjuda(phone);
+  if (lower.startsWith('/padrao')) return handlePadrao(phone, body.slice(7).trim());
 
   // Confirmation of pending transaction
   const pending = waDb.getPendingSession(phone);
   if (pending) {
+    // Awaiting default payment method selection
+    if (pending.awaitingDefault && /^[1-9]$/.test(lower)) {
+      const methods = getAllPaymentMethods();
+      const idx = parseInt(lower) - 1;
+      if (idx >= 0 && idx < methods.length) {
+        const chosen = methods[idx].name;
+        setDefaultPaymentMethod(phone, chosen);
+        pending.paymentMethod = chosen;
+        pending.awaitingDefault = false;
+        waDb.savePendingSession(phone, pending);
+        return sendWhatsApp(phone, `✅ *${chosen}* definido como padrão!\n\n` + buildConfirmationMessage(pending));
+      }
+    }
+
     // Card selection response (number 1, 2, 3...)
     if (pending.needsCardSelection && /^[1-9]$/.test(lower)) {
       const idx = parseInt(lower) - 1;
@@ -240,6 +285,21 @@ async function handleText(body, phone, userId) {
   if (!parsed.amount) {
     return sendWhatsApp(phone,
       `🤔 Não consegui identificar um valor.\n\nTente: _"paguei 50 reais no mercado"_\n\nOu use um dos comandos — */ajuda*`);
+  }
+
+  // Resolve payment method via user default when parser didn't set one
+  if (!parsed.paymentMethod && !parsed.needsCardSelection) {
+    const defaultMethod = getDefaultPaymentMethod(phone);
+    if (defaultMethod) {
+      parsed.paymentMethod = defaultMethod;
+    } else {
+      const methods = getAllPaymentMethods();
+      const methodList = methods.map((m, i) => `${i + 1}. ${m.name}`).join('\n');
+      waDb.savePendingSession(phone, { ...parsed, awaitingDefault: true, availableMethods: methods });
+      return sendWhatsApp(phone,
+        `💳 *Qual seu método de pagamento padrão?*\n\n${methodList}\n\nResponda com o número. Vou lembrar para as próximas transações!`
+      );
+    }
   }
 
   waDb.savePendingSession(phone, parsed);
@@ -271,6 +331,21 @@ async function handleAudio(mediaUrl, phone, userId) {
     const parsed = parse(text, userId);
     if (!parsed.amount) {
       return sendWhatsApp(phone, '🤔 Não identifiquei um valor no áudio. Tente novamente ou envie uma mensagem de texto.');
+    }
+
+    // Resolve payment method via user default when parser didn't set one
+    if (!parsed.paymentMethod && !parsed.needsCardSelection) {
+      const defaultMethod = getDefaultPaymentMethod(phone);
+      if (defaultMethod) {
+        parsed.paymentMethod = defaultMethod;
+      } else {
+        const methods = getAllPaymentMethods();
+        const methodList = methods.map((m, i) => `${i + 1}. ${m.name}`).join('\n');
+        waDb.savePendingSession(phone, { ...parsed, awaitingDefault: true, availableMethods: methods });
+        return sendWhatsApp(phone,
+          `💳 *Qual seu método de pagamento padrão?*\n\n${methodList}\n\nResponda com o número. Vou lembrar para as próximas transações!`
+        );
+      }
     }
 
     waDb.savePendingSession(phone, parsed);

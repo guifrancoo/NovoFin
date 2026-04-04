@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const bcrypt = require('bcryptjs');
 const { db } = require('../database');
-const { generateLinkCode, getUser } = require('../database/whatsapp');
+const { generateLinkCode, getUser, getDefaultPaymentMethod, setDefaultPaymentMethod } = require('../database/whatsapp');
 
 const router = Router();
 
@@ -78,6 +78,28 @@ router.get('/whatsapp/status', (req, res) => {
 router.delete('/whatsapp/unlink', (req, res) => {
   db.prepare('DELETE FROM whatsapp_users WHERE user_id = ?').run(req.user.id);
   res.json({ unlinked: true });
+});
+
+// GET /api/users/whatsapp/default-method — get default payment method for linked number
+router.get('/whatsapp/default-method', (req, res) => {
+  const row = db.prepare('SELECT phone_number FROM whatsapp_users WHERE user_id = ?').get(req.user.id);
+  if (!row) return res.json({ defaultMethod: null });
+  res.json({ defaultMethod: getDefaultPaymentMethod(row.phone_number) });
+});
+
+// PUT /api/users/whatsapp/default-method — set default payment method
+router.put('/whatsapp/default-method', (req, res) => {
+  const { method } = req.body;
+  if (!method) return res.status(400).json({ error: 'method is required' });
+
+  const valid = db.prepare('SELECT 1 FROM payment_methods WHERE name = ?').get(method);
+  if (!valid) return res.status(400).json({ error: 'Método de pagamento inválido' });
+
+  const row = db.prepare('SELECT phone_number FROM whatsapp_users WHERE user_id = ?').get(req.user.id);
+  if (!row) return res.status(404).json({ error: 'WhatsApp não vinculado' });
+
+  setDefaultPaymentMethod(row.phone_number, method);
+  res.json({ success: true });
 });
 
 module.exports = router;

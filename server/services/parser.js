@@ -134,6 +134,26 @@ function getAllCreditCards(userId) {
   }
 }
 
+function detectExplicitPaymentMethod(text) {
+  const lower = text.toLowerCase();
+
+  // Cash keywords
+  if (/\b(dinheiro|espécie|especie|pix|à vista|a vista)\b/.test(lower)) return 'Dinheiro';
+
+  // Card name keywords — fetch from DB to match registered cards
+  try {
+    const cards = db.prepare('SELECT name FROM payment_methods WHERE is_card = 1').all();
+    for (const card of cards) {
+      if (lower.includes(card.name.toLowerCase())) return card.name;
+    }
+  } catch (_) {}
+
+  // Generic card keywords — will still need selection if multiple cards
+  if (/\b(cartão|cartao|crédito|credito|débito|debito)\b/.test(lower)) return '__CARD__';
+
+  return null;
+}
+
 function detectInternational(text) {
   const lower = text.toLowerCase();
   const intlKeywords = [
@@ -188,31 +208,32 @@ function parse(text, userId = null) {
   const location     = extractLocation(text);
   const installments = parseInstallments(text);
   const isInternational = detectInternational(text);
+  const explicitMethod  = detectExplicitPaymentMethod(text);
 
-  let paymentMethod = installments === 1 ? 'Dinheiro' : null;
+  let paymentMethod = null;
   let needsCardSelection = false;
   let availableCards = [];
 
-  if (installments > 1) {
-    if (userId) {
-      availableCards = getAllCreditCards(userId);
-      if (availableCards.length === 1) {
-        paymentMethod = availableCards[0].name;
-        needsCardSelection = false;
-      } else if (availableCards.length > 1) {
-        paymentMethod = availableCards[0].name;
-        needsCardSelection = true;
-      } else {
-        // No cards registered — ask user to inform payment method
-        needsCardSelection = true;
-      }
-    } else {
+  if (explicitMethod && explicitMethod !== '__CARD__') {
+    paymentMethod = explicitMethod;
+    needsCardSelection = false;
+  } else if (installments > 1 || explicitMethod === '__CARD__') {
+    // Parcelado or generic "cartão" mention — need to select card
+    availableCards = getAllCreditCards(userId);
+    if (availableCards.length === 1) {
+      paymentMethod = availableCards[0].name;
+    } else if (availableCards.length > 1) {
+      paymentMethod = availableCards[0].name;
       needsCardSelection = true;
     }
+    // else: no cards found — paymentMethod stays null, handled via default in whatsapp.js
+  } else {
+    // No explicit method, no installments — will use default (handled in whatsapp.js)
+    paymentMethod = null;
   }
 
   console.log('[parser] installments:', installments, '| paymentMethod:', paymentMethod, '| needsCardSelection:', needsCardSelection);
-  return { amount, location, category, date, type, installments, paymentMethod, needsCardSelection, availableCards, isInternational };
+  return { amount, location, category, date, type, installments, paymentMethod, needsCardSelection, availableCards, isInternational, explicitMethod };
 }
 
 module.exports = { parse };
