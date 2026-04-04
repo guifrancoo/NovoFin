@@ -32,26 +32,6 @@ if (!PROD) {
 
 app.use(express.json({ limit: '100mb' }));
 
-// ⚠️  TEMPORARY — remove after use
-app.post('/api/temp-reset', (req, res) => {
-  const { resetKey, username, newPassword } = req.body;
-  if (resetKey !== process.env.ADMIN_KEY) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  try {
-    const bcrypt = require('bcryptjs');
-    const hash = bcrypt.hashSync(newPassword, 10);
-    const info = db.prepare('UPDATE users SET password = ? WHERE username = ?').run(hash, username);
-    if (info.changes === 0) {
-      const users = db.prepare('SELECT id, username FROM users').all();
-      return res.json({ error: 'User not found', users });
-    }
-    res.json({ success: true, message: `Password updated for ${username}` });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // Rotas públicas
 app.use('/api/auth',      authRouter);
 app.use('/api/admin',     adminRouter);
