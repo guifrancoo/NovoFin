@@ -122,9 +122,17 @@ function parseInstallments(text) {
 
 function getAllCreditCards(userId) {
   try {
-    return db.prepare(
+    console.log('[parser] getAllCreditCards userId:', userId);
+
+    // First check what columns exist in payment_methods
+    const allCards = db.prepare('SELECT * FROM payment_methods LIMIT 5').all();
+    console.log('[parser] sample payment_methods rows:', JSON.stringify(allCards));
+
+    const cards = db.prepare(
       'SELECT id, name FROM payment_methods WHERE is_card = 1 AND user_id = ? ORDER BY id ASC'
     ).all(userId);
+    console.log('[parser] cards found for user:', JSON.stringify(cards));
+    return cards;
   } catch (err) {
     console.log('[parser] getAllCreditCards error:', err.message);
     return [];
