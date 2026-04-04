@@ -155,8 +155,11 @@ function extractLocation(text) {
     .replace(/[\d]+(?:[.,]\d{1,2})?\s*reais/gi, '')
     // Remove dates
     .replace(/\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?/g, '')
+    // Remove installment words not caught by the pattern above
+    .replace(/\bparcelado\b/gi, '')
+    .replace(/\bparcela(?:s|do|da|mento)?\b/gi, '')
     // Remove filler/action/connector words including price connectors
-    .replace(/\b(hoje|ontem|paguei|gastei|comprei|recebi|fiz|no|na|em|de|do|da|um|uma|os|as|por|vezes|reais|valor)\b/gi, '')
+    .replace(/\b(hoje|ontem|paguei|gastei|comprei|recebi|fiz|no|na|em|de|do|da|um|uma|os|as|por|vezes|vez|reais|valor|parcelado|parcelada|parcela|parcelamento)\b/gi, '')
     // Remove any remaining bare numbers
     .replace(/\b\d+\b/g, '')
     .replace(/\s+/g, ' ')
@@ -183,7 +186,7 @@ function parse(text, userId = null) {
   const installments = parseInstallments(text);
   const isInternational = detectInternational(text);
 
-  let paymentMethod = 'Dinheiro';
+  let paymentMethod = installments === 1 ? 'Dinheiro' : null;
   let needsCardSelection = false;
   let availableCards = [];
 
@@ -192,12 +195,16 @@ function parse(text, userId = null) {
       availableCards = getAllCreditCards(userId);
       if (availableCards.length === 1) {
         paymentMethod = availableCards[0].name;
+        needsCardSelection = false;
       } else if (availableCards.length > 1) {
-        paymentMethod = availableCards[0].name; // default to first
+        paymentMethod = availableCards[0].name;
         needsCardSelection = true;
       } else {
-        console.warn('[parser] parcelamento detectado mas nenhum cartão encontrado — usando Dinheiro');
+        // No cards registered — ask user to inform payment method
+        needsCardSelection = true;
       }
+    } else {
+      needsCardSelection = true;
     }
   }
 
