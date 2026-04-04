@@ -4,20 +4,25 @@ const { db } = require('../database');
 const CATEGORY_KEYWORDS = {
   'Alimentação':   ['restaurante','lanche','almoço','jantar','café','cafeteria','comida',
                     'ifood','rappi','delivery','pizza','hambúrguer','hamburguer','sushi',
-                    'padaria','sorveteria','bar','boteco','churrasco','feira','hortifruti'],
+                    'padaria','sorveteria','bar','boteco','churrasco','feira','hortifruti',
+                    'mercadinho','quitanda','açougue','peixaria','mercearia'],
   'Transporte':   ['uber','taxi','táxi','99','indriver','gasolina','combustível','etanol',
                     'estacionamento','pedágio','ônibus','metro','metrô','passagem','bilhete',
-                    'bpk','posto','shell','ipiranga'],
-  'Compras':      ['mercado','supermercado','farmácia','remédio','roupa','sapato','tênis',
+                    'bpk','posto','shell','ipiranga','revisão','oficina','mecânico','pneu',
+                    'lavagem','autopeças','detran','multa','seguro auto','renavam'],
+  'Compras':      ['mercado','supermercado','roupa','sapato','tênis',
                     'loja','shopping','amazon','americanas','magazine','casas bahia',
                     'extra','atacadão','assaí','carrefour','hiper'],
   'Saúde':        ['médico','consulta','exame','hospital','clínica','dentista','psicólogo',
-                    'academia','plano de saúde','unimed','amil','bradesco saúde','fisio'],
+                    'academia','plano de saúde','unimed','amil','bradesco saúde','fisio',
+                    'farmácia','drogaria','droga','ultrafarma','pacheco','panvel','remédio'],
   'Lazer':        ['cinema','teatro','show','ingresso','netflix','spotify','disney',
-                    'clube','passeio','viagem','hotel','pousada','airbnb','booking'],
-  'Contas':       ['luz','energia','água','gás','internet','telefone','celular','tim',
-                    'claro','vivo','oi','aluguel','condomínio','iptu','ipva'],
-  'Educação':     ['curso','livro','escola','faculdade','mensalidade','aula','udemy',
+                    'clube','passeio','viagem','hotel','pousada','airbnb','booking',
+                    'jogo','steam','playstation','xbox','nintendo','game','livro','kindle'],
+  'Contas':       ['luz','energia','gás','internet','telefone','celular','tim',
+                    'claro','vivo','oi','aluguel','condomínio','iptu','ipva',
+                    'água','conta de água','saneamento','caesb','sabesp','embasa'],
+  'Educação':     ['curso','escola','faculdade','mensalidade','aula','udemy',
                     'coursera','senai','senac','clt'],
   'Cuidados Pessoais': ['salão','cabeleireiro','barbearia','manicure','spa','estética'],
   'Banco':        ['tarifa','iof','juros','anuidade','seguro'],
@@ -115,17 +120,27 @@ function parseInstallments(text) {
   return 1;
 }
 
-function getCreditCardMethod() {
+function getAllCreditCards(userId) {
   try {
-    const row = db.prepare(
-      'SELECT name FROM payment_methods WHERE is_card = 1 ORDER BY id ASC LIMIT 1'
-    ).get();
-    console.log('[parser] getCreditCardMethod query result:', row);
-    return row?.name || null;
+    return db.prepare(
+      'SELECT id, name FROM payment_methods WHERE is_card = 1 AND user_id = ? ORDER BY id ASC'
+    ).all(userId);
   } catch (err) {
-    console.log('[parser] getCreditCardMethod error:', err.message);
-    return null;
+    console.log('[parser] getAllCreditCards error:', err.message);
+    return [];
   }
+}
+
+function detectInternational(text) {
+  const lower = text.toLowerCase();
+  const intlKeywords = [
+    'dólar', 'dollar', 'usd', 'euro', 'eur', 'libra', 'gbp',
+    'internacional', 'international', 'importado', 'exterior',
+    'amazon.com', 'aliexpress', 'ebay', 'shein', 'shopee internacional',
+    'steamgames', 'steam store', 'apple.com', 'google play',
+    'netflix.com', 'spotify.com', 'adobe', 'microsoft',
+  ];
+  return intlKeywords.some(kw => lower.includes(kw));
 }
 
 function extractLocation(text) {
@@ -156,28 +171,38 @@ function extractLocation(text) {
 /**
  * Parses a Portuguese text message and extracts financial transaction data.
  * @param {string} text
- * @returns {{ amount: number|null, location: string, category: string, date: string, type: 'despesa'|'receita', installments: number, paymentMethod: string }}
+ * @param {number|null} userId
+ * @returns {{ amount: number|null, location: string, category: string, date: string, type: 'despesa'|'receita', installments: number, paymentMethod: string, needsCardSelection: boolean, availableCards: Array, isInternational: boolean }}
  */
-function parse(text) {
+function parse(text, userId = null) {
   const amount       = parseAmount(text);
   const date         = parseDate(text);
   const category     = suggestCategory(text);
   const type         = detectType(text, category);
   const location     = extractLocation(text);
   const installments = parseInstallments(text);
+  const isInternational = detectInternational(text);
 
   let paymentMethod = 'Dinheiro';
+  let needsCardSelection = false;
+  let availableCards = [];
+
   if (installments > 1) {
-    const card = getCreditCardMethod();
-    if (card) {
-      paymentMethod = card;
-    } else {
-      console.warn('[parser] parcelamento detectado mas nenhum cartão de crédito encontrado — usando Dinheiro');
+    if (userId) {
+      availableCards = getAllCreditCards(userId);
+      if (availableCards.length === 1) {
+        paymentMethod = availableCards[0].name;
+      } else if (availableCards.length > 1) {
+        paymentMethod = availableCards[0].name; // default to first
+        needsCardSelection = true;
+      } else {
+        console.warn('[parser] parcelamento detectado mas nenhum cartão encontrado — usando Dinheiro');
+      }
     }
   }
 
-  console.log('[parser] installments:', installments, '| paymentMethod:', paymentMethod);
-  return { amount, location, category, date, type, installments, paymentMethod };
+  console.log('[parser] installments:', installments, '| paymentMethod:', paymentMethod, '| needsCardSelection:', needsCardSelection);
+  return { amount, location, category, date, type, installments, paymentMethod, needsCardSelection, availableCards, isInternational };
 }
 
 module.exports = { parse };

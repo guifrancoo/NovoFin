@@ -54,7 +54,7 @@ function addMonths(isoDate, n) {
 
 function saveExpense(userId, data) {
   const { amount, location, category, date, type,
-          paymentMethod = 'Dinheiro', installments = 1 } = data;
+          paymentMethod = 'Dinheiro', installments = 1, isInternational = false } = data;
   const signedAmount      = type === 'receita' ? Math.abs(amount) : -Math.abs(amount);
   const installmentAmount = signedAmount / installments;
   const groupId           = `wa-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -62,14 +62,14 @@ function saveExpense(userId, data) {
   const stmt = db.prepare(`
     INSERT INTO expenses
       (group_id, purchase_date, due_date, category, location, payment_method,
-       total_amount, installments, installment_number, installment_amount, user_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       total_amount, installments, installment_number, installment_amount, user_id, is_international)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   for (let i = 0; i < installments; i++) {
     const dueDate = i === 0 ? date : addMonths(date, i);
     stmt.run(groupId, date, dueDate, category, location, paymentMethod,
-             signedAmount, installments, i + 1, installmentAmount, userId);
+             signedAmount, installments, i + 1, installmentAmount, userId, isInternational ? 1 : 0);
   }
 }
 
@@ -118,6 +118,8 @@ function buildConfirmationMessage(parsed) {
   const method = parsed.paymentMethod || 'Dinheiro';
   const installments = parsed.installments || 1;
 
+  const intlLine = parsed.isInternational ? '🌍 *Internacional:* Sim\n' : '';
+
   const installmentLine = installments > 1
     ? `🔢 *Parcelas:* ${installments}x de ${fmtBRL(parsed.amount / installments)}\n`
     : '';
@@ -129,6 +131,7 @@ function buildConfirmationMessage(parsed) {
     `📂 *Categoria:* ${parsed.category}\n` +
     `📅 *Data:* ${fmtDate(parsed.date)}\n` +
     `💳 *Método:* ${method}\n` +
+    intlLine +
     installmentLine +
     `\nResponda *sim* para confirmar ou *não* para cancelar.`
   );
@@ -210,6 +213,17 @@ async function handleText(body, phone, userId) {
   // Confirmation of pending transaction
   const pending = waDb.getPendingSession(phone);
   if (pending) {
+    // Card selection response (number 1, 2, 3...)
+    if (pending.needsCardSelection && /^[1-9]$/.test(lower)) {
+      const idx = parseInt(lower) - 1;
+      if (idx < pending.availableCards.length) {
+        pending.paymentMethod = pending.availableCards[idx].name;
+        pending.needsCardSelection = false;
+        waDb.savePendingSession(phone, pending);
+        return sendWhatsApp(phone, buildConfirmationMessage(pending));
+      }
+    }
+
     if (['sim', 's', 'yes', 'y', 'confirmar', '1'].includes(lower)) {
       saveExpense(userId, pending);
       waDb.clearSession(phone);
@@ -222,13 +236,21 @@ async function handleText(body, phone, userId) {
   }
 
   // Parse as new transaction
-  const parsed = parse(body);
+  const parsed = parse(body, userId);
   if (!parsed.amount) {
     return sendWhatsApp(phone,
       `🤔 Não consegui identificar um valor.\n\nTente: _"paguei 50 reais no mercado"_\n\nOu use um dos comandos — */ajuda*`);
   }
 
   waDb.savePendingSession(phone, parsed);
+  if (parsed.needsCardSelection) {
+    const cardList = parsed.availableCards
+      .map((c, i) => `${i + 1}. ${c.name}`)
+      .join('\n');
+    return sendWhatsApp(phone,
+      `💳 *Qual cartão usar?*\n\n${cardList}\n\nResponda com o número do cartão (ex: *1*)`
+    );
+  }
   return sendWhatsApp(phone, buildConfirmationMessage(parsed));
 }
 
@@ -240,12 +262,20 @@ async function handleAudio(mediaUrl, phone, userId) {
     const text   = await transcribe(buffer);
     await sendWhatsApp(phone, `📝 *Transcrição:* "${text}"`);
 
-    const parsed = parse(text);
+    const parsed = parse(text, userId);
     if (!parsed.amount) {
       return sendWhatsApp(phone, '🤔 Não identifiquei um valor no áudio. Tente novamente ou envie uma mensagem de texto.');
     }
 
     waDb.savePendingSession(phone, parsed);
+    if (parsed.needsCardSelection) {
+      const cardList = parsed.availableCards
+        .map((c, i) => `${i + 1}. ${c.name}`)
+        .join('\n');
+      return sendWhatsApp(phone,
+        `💳 *Qual cartão usar?*\n\n${cardList}\n\nResponda com o número do cartão (ex: *1*)`
+      );
+    }
     return sendWhatsApp(phone, buildConfirmationMessage(parsed));
   } catch (err) {
     console.error('[whatsapp] audio error:', err);
