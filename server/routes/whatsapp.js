@@ -132,7 +132,7 @@ function buildConfirmationMessage(parsed) {
 
   return (
     `${emoji} *${tipo} detectada!*\n\n` +
-    `📍 *Local:* ${parsed.location}\n` +
+    `📍 *Local:* ${parsed.location || 'Não informado'}\n` +
     `💵 *Valor:* ${valor}\n` +
     `📂 *Categoria:* ${parsed.category}\n` +
     `📅 *Data:* ${fmtDate(parsed.date)}\n` +

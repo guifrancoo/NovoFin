@@ -167,30 +167,53 @@ function detectInternational(text) {
 }
 
 function extractLocation(text) {
+  // Fetch card names to remove from location
+  let cardNames = [];
+  try {
+    cardNames = db.prepare('SELECT name FROM payment_methods').all().map(r => r.name.toLowerCase());
+  } catch (_) {}
+
   let clean = text
-    // Remove installment patterns before anything else
+    // Remove quotes
+    .replace(/["""'']/g, '')
+    // Remove R$ amounts
+    .replace(/R\$\s*[\d.,]+/gi, '')
+    // Remove amounts with "reais"
+    .replace(/[\d]+(?:[.,]\d{1,2})?\s*reais/gi, '')
+    // Remove dates
+    .replace(/\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?/g, '')
+    // Remove installment patterns
     .replace(/\bparcelado\s+em\s+\d+\b/gi, '')
     .replace(/\bem\s+\d+\s*(?:vezes|x)\b/gi, '')
     .replace(/\b\d+\s*x\b/gi, '')
     .replace(/\b\d+\s+vezes\b/gi, '')
-    // Remove amounts (R$, "reais")
-    .replace(/R\$\s*[\d.,]+/gi, '')
-    .replace(/[\d]+(?:[.,]\d{1,2})?\s*reais/gi, '')
-    // Remove dates
-    .replace(/\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?/g, '')
-    // Remove installment words not caught by the pattern above
-    .replace(/\bparcelado\b/gi, '')
     .replace(/\bparcela(?:s|do|da|mento)?\b/gi, '')
-    // Remove filler/action/connector words including price connectors
-    .replace(/\b(hoje|ontem|paguei|gastei|comprei|recebi|fiz|no|na|em|de|do|da|um|uma|os|as|por|vezes|vez|reais|valor|parcelado|parcelada|parcela|parcelamento)\b/gi, '')
-    // Remove any remaining bare numbers
+    // Remove payment method words
+    .replace(/\b(dinheiro|espécie|especie|pix|à vista|a vista|cartão|cartao|crédito|credito|débito|debito)\b/gi, '');
+
+  // Remove each card name dynamically
+  for (const card of cardNames) {
+    const escaped = card.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    clean = clean.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), '');
+  }
+
+  clean = clean
+    // Remove action verbs
+    .replace(/\b(paguei|gastei|comprei|almocei|jantei|comi|bebi|fiz|fui|peguei|usei|utilizei|contratei|assinei|recebi|depositei|transferi|saquei)\b/gi, '')
+    // Remove filler/connector words
+    .replace(/\b(hoje|ontem|no|na|em|de|do|da|um|uma|os|as|por|pelo|pela|com|para|até|ate)\b/gi, '')
+    // Remove bare numbers
     .replace(/\b\d+\b/g, '')
+    // Normalize spaces
     .replace(/\s+/g, ' ')
     .trim();
 
-  const words = clean.split(/\s+/).filter(w => w.length > 1);
-  const location = words.slice(0, 4).join(' ');
-  return location || 'Sem identificação';
+  // Filter meaningful words (length > 2, not just punctuation)
+  const words = clean.split(/\s+/).filter(w => w.length > 2);
+
+  if (words.length === 0) return null;
+
+  return words.slice(0, 4).join(' ');
 }
 
 // ─── Main parse function ───────────────────────────────────────────────────────
