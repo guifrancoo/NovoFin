@@ -1,16 +1,24 @@
 import React from 'react';
 import { Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import Dashboard   from './pages/Dashboard';
-import NewExpense  from './pages/NewExpense';
-import Invoices    from './pages/Invoices';
-import Reports     from './pages/Reports';
-import Settings    from './pages/Settings';
-import Login       from './pages/Login';
-import Profile     from './pages/Profile';
+import Dashboard      from './pages/Dashboard';
+import NewExpense     from './pages/NewExpense';
+import Invoices       from './pages/Invoices';
+import Reports        from './pages/Reports';
+import Settings       from './pages/Settings';
+import Login          from './pages/Login';
+import Profile        from './pages/Profile';
+import AdminLogin     from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem('token');
   if (!token) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function RequireAdmin({ children }) {
+  const token = localStorage.getItem('adminToken');
+  if (!token) return <Navigate to="/admin/login" replace />;
   return children;
 }
 
@@ -320,6 +328,19 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+
+      {/* Admin routes — completely separate from the user app */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <RequireAdmin>
+            <AdminDashboard />
+          </RequireAdmin>
+        }
+      />
+      <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+
       <Route
         path="/*"
         element={

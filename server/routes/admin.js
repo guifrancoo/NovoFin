@@ -1,9 +1,48 @@
 const { Router } = require('express');
 const path = require('path');
 const fs   = require('fs');
+const jwt  = require('jsonwebtoken');
 const { reopenDatabase, initDatabase, DB_PATH } = require('../database');
 
 const router = Router();
+
+// ── Admin JWT auth ────────────────────────────────────────────────────────────
+
+// POST /api/admin/login
+// Body: { key }  → returns a signed JWT with { role: 'admin' }
+router.post('/login', (req, res) => {
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey)
+    return res.status(500).json({ error: 'ADMIN_KEY não configurada no servidor' });
+
+  const { key } = req.body;
+  if (!key || key !== adminKey)
+    return res.status(401).json({ error: 'Chave inválida' });
+
+  const token = jwt.sign({ role: 'admin' }, process.env.JWT_SECRET, { expiresIn: '24h' });
+  res.json({ token });
+});
+
+// Middleware that validates the admin JWT (separate from user JWT)
+function requireAdmin(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer '))
+    return res.status(401).json({ error: 'Não autenticado' });
+
+  try {
+    const payload = jwt.verify(auth.slice(7), process.env.JWT_SECRET);
+    if (payload.role !== 'admin')
+      return res.status(403).json({ error: 'Acesso negado' });
+    next();
+  } catch {
+    res.status(401).json({ error: 'Token inválido ou expirado' });
+  }
+}
+
+// GET /api/admin/ping — protected route for testing
+router.get('/ping', requireAdmin, (_req, res) => res.json({ ok: true }));
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // POST /api/admin/restore-db
 // Header obrigatório: x-admin-key: <ADMIN_KEY do .env>
