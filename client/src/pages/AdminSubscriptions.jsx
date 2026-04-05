@@ -59,7 +59,7 @@ function PaymentForm({ userId, onSuccess }) {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Erro ao registrar pagamento'); return; }
       setAmount(''); setNotes('');
-      onSuccess(data.subscription);
+      await onSuccess();
     } catch { setError('Erro de conexão'); }
     finally { setLoading(false); }
   }
@@ -110,8 +110,7 @@ function UserAccordion({ user }) {
   const [loadingD, setLoadingD] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  async function loadDetail() {
-    if (detail) return;
+  async function fetchDetail() {
     setLoadingD(true);
     const token = localStorage.getItem('adminToken');
     try {
@@ -123,7 +122,7 @@ function UserAccordion({ user }) {
   }
 
   function toggle() {
-    if (!open) loadDetail();
+    if (!open && !detail) fetchDetail();
     setOpen(o => !o);
   }
 
@@ -136,21 +135,12 @@ function UserAccordion({ user }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setDetail(d => ({ ...d, subscription: data.subscription }));
-      }
+      if (res.ok) await fetchDetail();
     } finally { setActionLoading(false); }
   }
 
-  function onPaymentSuccess(subscription) {
-    setDetail(d => ({
-      subscription,
-      payments: d?.payments ?? [],
-    }));
-    loadDetail(); // reload full payment history
-    setDetail(null); // force refresh
-    setTimeout(loadDetail, 100);
+  async function onPaymentSuccess() {
+    await fetchDetail();
   }
 
   const sub = detail?.subscription;
