@@ -67,8 +67,8 @@ router.get('/', (req, res) => {
   const recent = db.prepare(`
     SELECT * FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND installment_number = 1
       ${uf.sql}
+    GROUP BY COALESCE(group_id, CAST(id AS TEXT))
     ORDER BY purchase_date DESC, created_at DESC
   `).all(startDate, endDate, ...uf.params);
 

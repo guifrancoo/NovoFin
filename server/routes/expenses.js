@@ -156,7 +156,7 @@ router.post('/', (req, res) => {
       recurInsert.run(
         randomUUID(), recurPurchaseDate, recurDueDate,
         category, subcategory || null, location || null, payment_method, description || null,
-        finalAmount, installmentAmount, req.user.id, intl
+        finalAmount, finalAmount, req.user.id, intl
       );
     }
   }

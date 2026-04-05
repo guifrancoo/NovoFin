@@ -454,7 +454,7 @@ export default function Dashboard() {
   const filteredExpenses = catFilter ? allExpenses.filter((e) => e.category === catFilter) : allExpenses;
 
   const atMin = minMonth ? month <= minMonth : false;
-  const atMax = month >= maxMonth;
+  const atMax = month >= currentYM();
 
   if (loading || !data) {
     return (
