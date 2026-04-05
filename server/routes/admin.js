@@ -80,12 +80,13 @@ router.get('/users', requireAdmin, (_req, res) => {
   // Ensure columns exist (safe on re-runs)
   try { db.exec("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'"); } catch (_) {}
   try { db.exec('ALTER TABLE users ADD COLUMN whatsapp_number TEXT'); } catch (_) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch (_) {}
 
   const users = db.prepare(`
     SELECT
       u.id,
       u.username  AS name,
-      u.email,
+      COALESCE(u.email, u.username) AS email,
       u.plan,
       u.whatsapp_number,
       u.created_at,
