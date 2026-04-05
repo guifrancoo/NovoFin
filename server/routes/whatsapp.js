@@ -6,7 +6,6 @@ const { getDefaultPaymentMethod, setDefaultPaymentMethod, logBotError } = requir
 const { sendWhatsApp, downloadMedia } = require('../services/twilio');
 const { parse }    = require('../services/parser');
 const { transcribe } = require('../services/assemblyai');
-const { processNFe } = require('../services/nf');
 const whatsappAuth = require('../middleware/whatsapp-auth');
 
 const router = express.Router();
@@ -203,8 +202,7 @@ async function handleAjuda(phone) {
     `_"paguei 45 reais no mercado hoje"_\n\n` +
     `*Áudio:*\n` +
     `Envie um áudio descrevendo o gasto — será transcrito automaticamente.\n\n` +
-    `*Nota Fiscal:*\n` +
-    `Envie uma foto do QR code da nota fiscal para extrair os dados automaticamente.`);
+    `Envie um áudio descrevendo o gasto — será transcrito automaticamente.`);
 }
 
 async function handlePadrao(phone, args) {
@@ -370,38 +368,6 @@ async function handleAudio(mediaUrl, phone, userId) {
   }
 }
 
-// ─── Image handler ─────────────────────────────────────────────────────────────
-async function handleImage(mediaUrl, phone, userId) {
-  await sendWhatsApp(phone, '🔍 Lendo a nota fiscal...');
-  try {
-    const buffer = await downloadMedia(mediaUrl);
-    const fs = require('fs');
-    const debugPath = `/tmp/twilio_image_${Date.now()}.jpg`;
-    fs.writeFileSync(debugPath, buffer);
-    console.log('[debug] image saved to:', debugPath, '| size:', buffer.length, 'bytes');
-    const nfe    = await processNFe(buffer);
-
-    if (!nfe.valor && !nfe.estabelecimento) {
-      return sendWhatsApp(phone,
-        `📄 QR code lido!\n\nChave: \`${nfe.chave}\`\n\nNão foi possível obter os detalhes automaticamente. Envie o valor manualmente.`);
-    }
-
-    const parsed = {
-      amount:   nfe.valor,
-      location: nfe.estabelecimento || 'Nota Fiscal',
-      category: 'Compras',
-      date:     new Date().toISOString().split('T')[0],
-      type:     'despesa',
-    };
-
-    waDb.savePendingSession(phone, parsed);
-    return sendWhatsApp(phone, buildConfirmationMessage(parsed));
-  } catch (err) {
-    console.error('[whatsapp] image error:', err);
-    return sendWhatsApp(phone, '❌ Não consegui ler o QR code. Certifique-se de que a foto está nítida e o QR code está visível.');
-  }
-}
-
 // ─── Main webhook ──────────────────────────────────────────────────────────────
 router.post('/',
   validateTwilioSignature,
@@ -443,10 +409,8 @@ router.post('/',
 
         if (contentType.startsWith('audio/')) {
           await handleAudio(mediaUrl, phone, userId);
-        } else if (contentType.startsWith('image/')) {
-          await handleImage(mediaUrl, phone, userId);
         } else {
-          await sendWhatsApp(phone, '📎 Tipo de arquivo não suportado. Envie texto, áudio ou uma foto de nota fiscal.');
+          await sendWhatsApp(phone, '📎 Tipo de arquivo não suportado. Envie texto ou áudio.');
         }
       } else {
         await handleText(body, phone, userId);
