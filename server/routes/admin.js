@@ -73,6 +73,59 @@ router.get('/stats', requireAdmin, (_req, res) => {
   });
 });
 
+// GET /api/admin/users — full user list with activity data
+router.get('/users', requireAdmin, (_req, res) => {
+  const { db } = require('../database');
+
+  // Ensure columns exist (safe on re-runs)
+  try { db.exec("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'"); } catch (_) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN whatsapp_number TEXT'); } catch (_) {}
+
+  const users = db.prepare(`
+    SELECT
+      u.id,
+      u.username  AS name,
+      u.email,
+      u.plan,
+      u.whatsapp_number,
+      u.created_at,
+      COUNT(e.id)  AS transactionCount,
+      MAX(e.created_at) AS lastActivity
+    FROM users u
+    LEFT JOIN expenses e ON e.user_id = u.id
+    GROUP BY u.id
+    ORDER BY u.created_at DESC
+  `).all();
+
+  res.json(users.map(u => ({
+    id:               u.id,
+    name:             u.name,
+    email:            u.email     || null,
+    plan:             u.plan      || 'free',
+    whatsapp:         u.whatsapp_number || null,
+    created_at:       u.created_at,
+    transactionCount: u.transactionCount,
+    lastActivity:     u.lastActivity || null,
+  })));
+});
+
+// PATCH /api/admin/users/:id/plan — update user plan
+router.patch('/users/:id/plan', requireAdmin, (req, res) => {
+  const { db } = require('../database');
+  const { plan } = req.body;
+  const allowed = ['free', 'pro', 'suspended'];
+
+  if (!allowed.includes(plan))
+    return res.status(400).json({ error: `Plano inválido. Use: ${allowed.join(', ')}` });
+
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
+  if (!user)
+    return res.status(404).json({ error: 'Usuário não encontrado' });
+
+  db.prepare('UPDATE users SET plan = ? WHERE id = ?').run(plan, req.params.id);
+  res.json({ ok: true });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 // POST /api/admin/restore-db

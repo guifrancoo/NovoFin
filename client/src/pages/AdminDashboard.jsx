@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AdminLayout from './AdminLayout';
 
 const CARDS = [
   {
@@ -80,74 +81,48 @@ export default function AdminDashboard() {
         if (!res.ok) throw new Error('Falha ao carregar estatísticas');
         return res.json();
       })
-      .then((data) => {
-        if (data) setStats(data);
-      })
+      .then((data) => { if (data) setStats(data); })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [navigate]);
 
-  function handleLogout() {
-    localStorage.removeItem('adminToken');
-    navigate('/admin/login', { replace: true });
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-[#1a1a2e] px-5 h-14 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-white font-semibold text-sm tracking-tight">NovoFin Admin</span>
-          <span className="text-white/30 text-xs hidden sm:inline">Painel Administrativo</span>
+    <AdminLayout>
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold text-gray-900">Dashboard</h1>
+        <p className="text-gray-400 text-sm mt-0.5">Visão geral do sistema</p>
+      </div>
+
+      {loading && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 h-28 animate-pulse">
+              <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
+              <div className="h-7 bg-gray-100 rounded w-1/3" />
+            </div>
+          ))}
         </div>
-        <button
-          onClick={handleLogout}
-          className="text-white/60 hover:text-white text-xs border border-white/20 hover:border-white/40 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          Sair
-        </button>
-      </header>
+      )}
 
-      {/* Content */}
-      <main className="flex-1 p-5 sm:p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-lg font-semibold text-gray-900">Dashboard</h1>
-            <p className="text-gray-400 text-sm mt-0.5">Visão geral do sistema</p>
-          </div>
-
-          {loading && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 h-28 animate-pulse">
-                  <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
-                  <div className="h-7 bg-gray-100 rounded w-1/3" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-red-600 text-sm">
-              {error}
-            </div>
-          )}
-
-          {stats && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {CARDS.map(({ key, label, icon, format, alert }) => (
-                <StatCard
-                  key={key}
-                  icon={icon}
-                  label={label}
-                  value={format(stats[key])}
-                  isAlert={alert?.(stats[key]) ?? false}
-                />
-              ))}
-            </div>
-          )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-red-600 text-sm">
+          {error}
         </div>
-      </main>
-    </div>
+      )}
+
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {CARDS.map(({ key, label, icon, format, alert }) => (
+            <StatCard
+              key={key}
+              icon={icon}
+              label={label}
+              value={format(stats[key])}
+              isAlert={alert?.(stats[key]) ?? false}
+            />
+          ))}
+        </div>
+      )}
+    </AdminLayout>
   );
 }
