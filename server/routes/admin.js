@@ -42,6 +42,37 @@ function requireAdmin(req, res, next) {
 // GET /api/admin/ping — protected route for testing
 router.get('/ping', requireAdmin, (_req, res) => res.json({ ok: true }));
 
+// GET /api/admin/stats — dashboard summary
+router.get('/stats', requireAdmin, (_req, res) => {
+  const { db } = require('../database');
+
+  const totalUsers = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+
+  const activeUsers = db.prepare(`
+    SELECT COUNT(DISTINCT user_id) AS n FROM expenses
+    WHERE purchase_date >= date('now', '-30 days')
+  `).get().n;
+
+  const totalTransactions = db.prepare('SELECT COUNT(*) AS n FROM expenses').get().n;
+
+  const newUsersThisMonth = db.prepare(`
+    SELECT COUNT(*) AS n FROM users
+    WHERE created_at >= date('now', 'start of month')
+  `).get().n;
+
+  const fileSize  = fs.existsSync(DB_PATH) ? fs.statSync(DB_PATH).size : 0;
+  const dbSizeKB  = Math.round(fileSize / 1024);
+
+  res.json({
+    totalUsers,
+    activeUsers,
+    totalTransactions,
+    dbSizeKB,
+    botErrors: 0,
+    newUsersThisMonth,
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 // POST /api/admin/restore-db

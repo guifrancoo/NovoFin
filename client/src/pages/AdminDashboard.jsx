@@ -1,8 +1,91 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const CARDS = [
+  {
+    key: 'totalUsers',
+    label: 'Total de Usuários',
+    icon: '👥',
+    format: (v) => v,
+  },
+  {
+    key: 'activeUsers',
+    label: 'Usuários Ativos (30d)',
+    icon: '✅',
+    format: (v) => v,
+  },
+  {
+    key: 'totalTransactions',
+    label: 'Total de Transações',
+    icon: '📊',
+    format: (v) => v.toLocaleString('pt-BR'),
+  },
+  {
+    key: 'newUsersThisMonth',
+    label: 'Novos este Mês',
+    icon: '🆕',
+    format: (v) => v,
+  },
+  {
+    key: 'dbSizeKB',
+    label: 'Tamanho do Banco',
+    icon: '🗄️',
+    format: (v) => `${v.toLocaleString('pt-BR')} KB`,
+  },
+  {
+    key: 'botErrors',
+    label: 'Erros do Bot (24h)',
+    icon: '⚠️',
+    format: (v) => v,
+    alert: (v) => v > 0,
+  },
+];
+
+function StatCard({ icon, label, value, isAlert }) {
+  return (
+    <div className={`bg-white rounded-xl border ${isAlert ? 'border-red-200' : 'border-gray-200'} p-5 flex flex-col gap-3`}>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
+        <span className="text-lg leading-none">{icon}</span>
+      </div>
+      <div className={`text-2xl font-semibold ${isAlert ? 'text-red-500' : 'text-gray-900'}`}>
+        {value}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const [stats, setStats]     = useState(null);
+  const [error, setError]     = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) {
+      navigate('/admin/login', { replace: true });
+      return;
+    }
+
+    fetch('/api/admin/stats', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (res.status === 401 || res.status === 403) {
+          localStorage.removeItem('adminToken');
+          navigate('/admin/login', { replace: true });
+          return;
+        }
+        if (!res.ok) throw new Error('Falha ao carregar estatísticas');
+        return res.json();
+      })
+      .then((data) => {
+        if (data) setStats(data);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [navigate]);
 
   function handleLogout() {
     localStorage.removeItem('adminToken');
@@ -10,25 +93,61 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-xl font-semibold text-navy">Painel Admin</h1>
-            <p className="text-gray-500 text-sm mt-0.5">NovoFin — Administração</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-500 hover:text-red-500 border border-gray-200 hover:border-red-200 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            Sair
-          </button>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <header className="bg-[#1a1a2e] px-5 h-14 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <span className="text-white font-semibold text-sm tracking-tight">NovoFin Admin</span>
+          <span className="text-white/30 text-xs hidden sm:inline">Painel Administrativo</span>
         </div>
+        <button
+          onClick={handleLogout}
+          className="text-white/60 hover:text-white text-xs border border-white/20 hover:border-white/40 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          Sair
+        </button>
+      </header>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
-          Em construção — em breve mais funcionalidades aqui.
+      {/* Content */}
+      <main className="flex-1 p-5 sm:p-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-lg font-semibold text-gray-900">Dashboard</h1>
+            <p className="text-gray-400 text-sm mt-0.5">Visão geral do sistema</p>
+          </div>
+
+          {loading && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 h-28 animate-pulse">
+                  <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
+                  <div className="h-7 bg-gray-100 rounded w-1/3" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4 text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
+          {stats && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {CARDS.map(({ key, label, icon, format, alert }) => (
+                <StatCard
+                  key={key}
+                  icon={icon}
+                  label={label}
+                  value={format(stats[key])}
+                  isAlert={alert?.(stats[key]) ?? false}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
