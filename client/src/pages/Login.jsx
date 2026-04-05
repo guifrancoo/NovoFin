@@ -48,7 +48,9 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <span className="text-4xl">💰</span>
-          <h1 className="text-2xl font-bold text-gray-800 mt-3">NovoFin</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mt-3">
+            <span>gr</span><span style={{color:'#2ecc71'}}>ã</span><span>o</span>
+          </h1>
           <p className="text-sm text-gray-500 mt-1">Entre com suas credenciais</p>
         </div>
 

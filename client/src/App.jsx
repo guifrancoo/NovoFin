@@ -146,7 +146,9 @@ function Sidebar({ username, onLogout }) {
     <aside className="hidden md:flex flex-col w-40 bg-navy shrink-0 h-screen sticky top-0">
       {/* Logo */}
       <div className="px-3 py-4 border-b border-white/8">
-        <div className="text-white font-semibold text-sm tracking-tight">NovoFin</div>
+        <div className="text-white font-semibold text-sm tracking-tight">
+          <span>gr</span><span style={{color:'#2ecc71'}}>ã</span><span>o</span>
+        </div>
         <div className="text-white/35 text-xs mt-0.5">Controle financeiro</div>
       </div>
 
@@ -261,7 +263,7 @@ function Topbar() {
     '/configuracoes': 'Configurações',
     '/perfil':        'Perfil',
   };
-  const title = titles[location.pathname] ?? 'NovoFin';
+  const title = titles[location.pathname] ?? 'grão';
   const showNewBtn = location.pathname !== '/novo';
 
   return (

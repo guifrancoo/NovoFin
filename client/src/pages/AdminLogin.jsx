@@ -35,7 +35,9 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
         <div className="mb-8">
-          <div className="text-navy font-semibold text-lg tracking-tight">NovoFin</div>
+          <div className="text-navy font-semibold text-lg tracking-tight">
+            <span>gr</span><span style={{color:'#2ecc71'}}>ã</span><span>o</span>
+          </div>
           <div className="text-gray-500 text-sm mt-0.5">Painel Administrativo</div>
         </div>
 

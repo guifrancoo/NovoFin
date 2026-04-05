@@ -24,7 +24,7 @@ export default function AdminLayout({ children }) {
       <header className="bg-[#1a1a2e] px-5 h-14 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-5">
           <span className="text-white font-semibold text-sm tracking-tight shrink-0">
-            NovoFin Admin
+            <span>gr</span><span style={{color:'#2ecc71'}}>ã</span><span>o</span> Admin
           </span>
           <nav className="flex items-center gap-1">
             <NavLink
