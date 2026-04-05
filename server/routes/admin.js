@@ -132,6 +132,46 @@ router.patch('/users/:id/plan', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/admin/db-health — database diagnostic
+router.get('/db-health', requireAdmin, (_req, res) => {
+  const { db } = require('../database');
+
+  const fileSize           = fs.existsSync(DB_PATH) ? fs.statSync(DB_PATH).size : 0;
+  const sizeKB             = Math.round(fileSize / 1024);
+  const totalUsers         = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
+  const totalTransactions  = db.prepare('SELECT COUNT(*) AS n FROM expenses').get().n;
+  const totalPaymentMethods= db.prepare('SELECT COUNT(*) AS n FROM payment_methods').get().n;
+  const totalCategories    = db.prepare('SELECT COUNT(*) AS n FROM categories').get().n;
+
+  const oldest = db.prepare('SELECT MIN(purchase_date) AS d FROM expenses').get().d || null;
+  const newest = db.prepare('SELECT MAX(purchase_date) AS d FROM expenses').get().d || null;
+
+  const integrityRow   = db.prepare('PRAGMA integrity_check').get();
+  const integrityCheck = integrityRow?.integrity_check === 'ok' ? 'ok' : 'error';
+
+  const walRow = db.prepare('PRAGMA journal_mode').get();
+  const walMode = walRow ? Object.values(walRow)[0] : 'unknown';
+
+  const uptimeSec = Math.floor(process.uptime());
+  const h = Math.floor(uptimeSec / 3600);
+  const m = Math.floor((uptimeSec % 3600) / 60);
+  const s = uptimeSec % 60;
+  const lastRestart = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+
+  res.json({
+    sizeKB,
+    totalUsers,
+    totalTransactions,
+    totalPaymentMethods,
+    totalCategories,
+    oldestTransaction: oldest,
+    newestTransaction: newest,
+    integrityCheck,
+    walMode,
+    lastRestart,
+  });
+});
+
 // GET /api/admin/errors — last 50 bot errors
 router.get('/errors', requireAdmin, (_req, res) => {
   const { db } = require('../database');
