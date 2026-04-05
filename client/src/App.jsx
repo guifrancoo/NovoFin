@@ -300,7 +300,7 @@ function Topbar() {
         </NavLink>
         <button
           onClick={handleLogout}
-          className="hidden md:block text-xs text-gray-400 hover:text-gray-700 transition-colors"
+          className="block md:hidden text-xs text-gray-400 hover:text-gray-700 transition-colors"
         >
           Sair
         </button>
