@@ -276,7 +276,10 @@ function Topbar() {
 
   return (
     <header className="bg-white border-b border-gray-200 px-4 md:px-5 h-12 flex items-center justify-between shrink-0">
-      <span className="font-semibold text-navy text-sm">{title}</span>
+      <span className="block md:hidden" style={{ fontFamily: 'Sora, sans-serif', fontWeight: 700, fontSize: 18, color: '#1a1a2e' }}>
+        gr<span style={{ color: '#2ecc71' }}>ã</span>o
+      </span>
+      <span className="hidden md:block font-semibold text-navy text-sm">{title}</span>
       <div className="flex items-center gap-3">
         {showNewBtn && (
           <NavLink to="/novo"
