@@ -280,6 +280,21 @@ router.get('/errors', requireAdmin, (_req, res) => {
   res.json(errors);
 });
 
+// GET /api/admin/query-netflix — temp: inspect recurring netflix rows
+router.get('/query-netflix', requireAdmin, (_req, res) => {
+  const { db } = require('../database');
+
+  const rows = db.prepare(`
+    SELECT id, purchase_date, description, total_amount, installment_amount
+    FROM expenses
+    WHERE LOWER(description) LIKE '%netflix%'
+      AND recorrente = 1
+    ORDER BY purchase_date
+  `).all();
+
+  res.json(rows);
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 // POST /api/admin/restore-db
