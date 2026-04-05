@@ -123,6 +123,7 @@ function buildConfirmationMessage(parsed) {
   const method = parsed.paymentMethod || 'Dinheiro';
   const installments = parsed.installments || 1;
 
+  const localLine = parsed.location ? `📍 *Local:* ${parsed.location}\n` : '';
   const intlLine = parsed.isInternational ? '🌍 *Internacional:* Sim\n' : '';
 
   const installmentLine = installments > 1
@@ -131,7 +132,7 @@ function buildConfirmationMessage(parsed) {
 
   return (
     `${emoji} *${tipo} detectada!*\n\n` +
-    `📍 *Local:* ${parsed.location || 'Não informado'}\n` +
+    localLine +
     `💵 *Valor:* ${valor}\n` +
     `📂 *Categoria:* ${parsed.category}\n` +
     `📅 *Data:* ${fmtDate(parsed.date)}\n` +
@@ -147,17 +148,17 @@ async function handleVincular(phone, args) {
   const code = args.trim();
   if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
     return sendWhatsApp(phone,
-      '⚠️ Código inválido. Use: `/vincular 123456`\n\nO código é gerado na seção *Perfil* do NovoFin e tem 6 dígitos.');
+      '⚠️ Código inválido. Use: `/vincular 123456`\n\nO código é gerado na seção *Perfil* do grão e tem 6 dígitos.');
   }
 
   const user = waDb.linkUser(phone, code);
   if (!user) {
     return sendWhatsApp(phone,
-      '❌ Código inválido ou expirado.\n\nGere um novo código em *Perfil → Vincular WhatsApp* no NovoFin.');
+      '❌ Código inválido ou expirado.\n\nGere um novo código em *Perfil → Vincular WhatsApp* no grão.');
   }
 
   return sendWhatsApp(phone,
-    `✅ *Conta vinculada com sucesso!*\n\nOlá, *${user.username}*! Agora você pode gerenciar suas finanças por aqui.\n\nDigite */ajuda* para ver os comandos disponíveis.`);
+    `✅ *Conta vinculada com sucesso!*\n\nOlá, *${user.username}*! Agora você pode registrar seus gastos por aqui.\n\nDigite */ajuda* para ver os comandos disponíveis.`);
 }
 
 async function handleSaldo(userId, phone) {
@@ -190,9 +191,9 @@ async function handleResumo(userId, phone) {
 
 async function handleAjuda(phone) {
   return sendWhatsApp(phone,
-    `🤖 *NovoFin Bot — Ajuda*\n\n` +
+    `🌾 *grão — Ajuda*\n\n` +
     `*Comandos disponíveis:*\n` +
-    `📌 /vincular CODIGO — Vincula seu número ao NovoFin\n` +
+    `📌 /vincular CODIGO — Vincula seu número ao grão\n` +
     `💰 /saldo — Saldo do mês atual\n` +
     `📋 /resumo — Gastos por categoria\n` +
     `💳 /padrao — Ver ou alterar método de pagamento padrão\n` +
@@ -201,7 +202,6 @@ async function handleAjuda(phone) {
     `Envie uma mensagem de texto descrevendo o gasto:\n` +
     `_"paguei 45 reais no mercado hoje"_\n\n` +
     `*Áudio:*\n` +
-    `Envie um áudio descrevendo o gasto — será transcrito automaticamente.\n\n` +
     `Envie um áudio descrevendo o gasto — será transcrito automaticamente.`);
 }
 
@@ -395,7 +395,7 @@ router.post('/',
               .run(new Date().toISOString(), userId);
           }
           return sendWhatsApp(phone,
-            '⚠️ Seu plano expirou. Para continuar usando o NovoFin, entre em contato com o suporte para renovar sua assinatura.'
+            '⚠️ Seu acesso ao grão expirou.\n\nPara continuar registrando seus gastos, renove sua assinatura em graofin.com.br'
           ).catch(console.error);
         }
       }
