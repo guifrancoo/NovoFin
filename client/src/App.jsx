@@ -255,6 +255,14 @@ function BottomNav() {
 
 function Topbar() {
   const location = useLocation();
+  const navigate  = useNavigate();
+
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    localStorage.removeItem('is_admin');
+    navigate('/login', { replace: true });
+  }
   const titles = {
     '/':              'Dashboard',
     '/novo':          'Novo lançamento',
@@ -290,6 +298,12 @@ function Topbar() {
             <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
           </svg>
         </NavLink>
+        <button
+          onClick={handleLogout}
+          className="hidden md:block text-xs text-gray-400 hover:text-gray-700 transition-colors"
+        >
+          Sair
+        </button>
       </div>
     </header>
   );
