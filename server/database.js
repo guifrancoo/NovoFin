@@ -12,6 +12,7 @@ fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 function _openRawDatabase() {
   const instance = new Database(DB_PATH);
+  instance.exec("PRAGMA journal_mode=WAL");
   instance.exec("PRAGMA foreign_keys = ON");
   return instance;
 }
