@@ -46,7 +46,7 @@ function MonthNav({ value, onChange, minMonth, maxMonth }) {
   const years = [];
   for (let y = minY; y <= maxY; y++) years.push(y);
   const atMin = minMonth ? value <= minMonth : false;
-  const atMax = value >= (maxMonth || currentYM());
+  const atMax = false;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -454,7 +454,7 @@ export default function Dashboard() {
   const filteredExpenses = catFilter ? allExpenses.filter((e) => e.category === catFilter) : allExpenses;
 
   const atMin = minMonth ? month <= minMonth : false;
-  const atMax = month >= currentYM();
+  const atMax = false;
 
   if (loading || !data) {
     return (
