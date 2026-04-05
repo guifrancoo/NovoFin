@@ -19,9 +19,10 @@ const INITIAL = {
   payment_method:   '',
   description:      '',
   total_amount:     '',
-  installments:     '1',
-  is_international: false,
-  recorrente:       false,
+  installments:       '1',
+  is_international:   false,
+  recorrente:         false,
+  meses_recorrencia:  '12',
 };
 
 export default function NewExpense() {
@@ -83,8 +84,9 @@ export default function NewExpense() {
         subcategory:      form.subcategory || null,
         total_amount:     parseFloat(form.total_amount),
         installments:     isReceita ? 1 : (parseInt(form.installments, 10) || 1),
-        is_international: !isReceita && form.is_international ? 1 : 0,
-        recorrente:       !isReceita && form.recorrente       ? 1 : 0,
+        is_international:  !isReceita && form.is_international ? 1 : 0,
+        recorrente:        !isReceita && form.recorrente       ? 1 : 0,
+        meses_recorrencia: !isReceita && form.recorrente ? (parseInt(form.meses_recorrencia, 10) || 12) : 1,
       });
       setSuccess(res.data);
       setForm(INITIAL);
@@ -234,7 +236,7 @@ export default function NewExpense() {
                   </button>
                   <span className="text-sm text-gray-600">🌍 Compra internacional</span>
                 </div>
-                <div className="flex items-center gap-3 py-1">
+                <div className="flex flex-wrap items-center gap-3 py-1">
                   <button type="button"
                     onClick={() => setForm((f) => ({ ...f, recorrente: !f.recorrente }))}
                     className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
@@ -247,6 +249,18 @@ export default function NewExpense() {
                     🔁 Recorrente
                     <span className="text-xs text-gray-400 ml-1">cobrada todo mês</span>
                   </span>
+                  {form.recorrente && (
+                    <div className="flex items-center gap-1.5 w-full sm:w-auto mt-1 sm:mt-0">
+                      <label className="text-xs text-gray-500 whitespace-nowrap">Repetir por</label>
+                      <input
+                        type="number" min="1" max="36"
+                        value={form.meses_recorrencia}
+                        onChange={set('meses_recorrencia')}
+                        className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 text-center"
+                      />
+                      <label className="text-xs text-gray-500 whitespace-nowrap">meses</label>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

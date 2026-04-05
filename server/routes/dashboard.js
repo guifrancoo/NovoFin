@@ -24,8 +24,8 @@ router.get('/', (req, res) => {
   // Receita e despesa do período
   const totalRow = db.prepare(`
     SELECT
-      COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0) AS income,
-      COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0) AS expense
+      ROUND(COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0), 2) AS income,
+      ROUND(COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0), 2) AS expense
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
@@ -34,7 +34,7 @@ router.get('/', (req, res) => {
 
   // Saldo de caixa acumulado até o final do período
   const accRow = db.prepare(`
-    SELECT COALESCE(SUM(installment_amount), 0) AS net_accumulated
+    SELECT ROUND(COALESCE(SUM(installment_amount), 0), 2) AS net_accumulated
     FROM expenses
     WHERE payment_method = 'Dinheiro'
       AND purchase_date <= ?
@@ -43,8 +43,8 @@ router.get('/', (req, res) => {
 
   const byMethod = db.prepare(`
     SELECT payment_method,
-      COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0) AS income,
-      COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0) AS expense
+      ROUND(COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0), 2) AS income,
+      ROUND(COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0), 2) AS expense
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
@@ -55,7 +55,7 @@ router.get('/', (req, res) => {
 
   const byCategory = db.prepare(`
     SELECT category,
-           COALESCE(SUM(installment_amount), 0) AS total
+           ROUND(COALESCE(SUM(installment_amount), 0), 2) AS total
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
       AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
@@ -79,8 +79,8 @@ router.get('/', (req, res) => {
   if (isRange) {
     evolution = db.prepare(`
       SELECT strftime('%Y-%m', purchase_date) AS month,
-             COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0) AS income,
-             COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0) AS expense
+             ROUND(COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0), 2) AS income,
+             ROUND(COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0), 2) AS expense
       FROM expenses
       WHERE purchase_date BETWEEN ? AND ?
         AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
@@ -91,8 +91,8 @@ router.get('/', (req, res) => {
   } else {
     evolution = db.prepare(`
       SELECT strftime('%Y-%m', purchase_date) AS month,
-             COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0) AS income,
-             COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0) AS expense
+             ROUND(COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0), 2) AS income,
+             ROUND(COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0), 2) AS expense
       FROM expenses
       WHERE purchase_date >= date(?, '-5 months', 'start of month')
         AND purchase_date <  date(?, '+1 month',  'start of month')

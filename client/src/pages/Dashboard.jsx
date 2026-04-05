@@ -409,6 +409,7 @@ export default function Dashboard() {
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteTarget, setDeleteTarget]     = useState(null);
   const [minMonth, setMinMonth]   = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
   const maxMonth = currentYM();
 
   const apiParams = mode === 'month' ? { month } : { start: rangeStart, end: rangeEnd };
@@ -417,7 +418,7 @@ export default function Dashboard() {
     setLoading(true);
     getDashboard(apiParams).then((r) => setData(r.data)).finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, month, rangeStart, rangeEnd]);
+  }, [mode, month, rangeStart, rangeEnd, refreshKey]);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
   useEffect(() => {
@@ -434,7 +435,7 @@ export default function Dashboard() {
     setMode('range');
   };
 
-  const handleSaved = () => { setEditingExpense(null); loadDashboard(); };
+  const handleSaved = () => { setEditingExpense(null); setRefreshKey(k => k + 1); };
   const handleRecorrenteUpdated = (id, value) => {
     setData(d => ({
       ...d,

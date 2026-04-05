@@ -93,6 +93,7 @@ router.post('/', (req, res) => {
     type = 'despesa', // 'despesa' | 'receita'
     is_international = 0,
     recorrente = 0,
+    meses_recorrencia = 1,
   } = req.body;
 
   if (!purchase_date || !category || !payment_method || total_amount == null) {
@@ -139,6 +140,26 @@ router.post('/', (req, res) => {
   const created = db.prepare(
     'SELECT * FROM expenses WHERE group_id = ? ORDER BY installment_number'
   ).all(group_id);
+
+  // Recurring: create (meses_recorrencia - 1) additional independent records
+  const numMeses = recr ? Math.min(36, Math.max(1, parseInt(meses_recorrencia, 10) || 1)) : 1;
+  if (recr && numMeses > 1) {
+    const recurInsert = db.prepare(`
+      INSERT INTO expenses
+        (group_id, purchase_date, due_date, category, subcategory, location, payment_method,
+         description, total_amount, installments, installment_number, installment_amount, user_id, is_international, recorrente)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, 1)
+    `);
+    for (let m = 1; m < numMeses; m++) {
+      const recurPurchaseDate = addMonths(purchase_date, m);
+      const recurDueDate      = computeFirstDueDate(recurPurchaseDate, payment_method);
+      recurInsert.run(
+        randomUUID(), recurPurchaseDate, recurDueDate,
+        category, subcategory || null, location || null, payment_method, description || null,
+        finalAmount, installmentAmount, req.user.id, intl
+      );
+    }
+  }
 
   res.status(201).json(created);
 });
