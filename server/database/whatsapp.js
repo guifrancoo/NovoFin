@@ -35,6 +35,17 @@ function initWhatsappTables() {
 
   // Migration for existing tables
   try { db.prepare('ALTER TABLE whatsapp_users ADD COLUMN default_payment_method TEXT DEFAULT NULL').run(); } catch (_) {}
+
+  // Backfill whatsapp_number for users linked before this column existed
+  db.prepare(`
+    UPDATE users
+    SET whatsapp_number = (
+      SELECT phone_number FROM whatsapp_users WHERE whatsapp_users.user_id = users.id
+    )
+    WHERE EXISTS (
+      SELECT 1 FROM whatsapp_users WHERE whatsapp_users.user_id = users.id
+    )
+  `).run();
 }
 
 // ─── Linking ───────────────────────────────────────────────────────────────────
@@ -70,6 +81,7 @@ function linkUser(phoneNumber, code) {
   db.prepare(
     'INSERT OR REPLACE INTO whatsapp_users (user_id, phone_number) VALUES (?, ?)'
   ).run(row.user_id, phoneNumber);
+  db.prepare('UPDATE users SET whatsapp_number = ? WHERE id = ?').run(phoneNumber, row.user_id);
   db.prepare('DELETE FROM whatsapp_link_codes WHERE code = ?').run(code);
 
   return getUser(phoneNumber);
