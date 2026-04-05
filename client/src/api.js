@@ -46,7 +46,8 @@ export const updateExpense = (id, data) => api.patch(`/expenses/${id}`, data);
 export const updateGroup   = (gid, data) => api.patch(`/expenses/group/${gid}`, data);
 export const deleteExpense = (id)     => api.delete(`/expenses/${id}`);
 export const deleteGroup   = (gid)    => api.delete(`/expenses/group/${gid}`);
-export const checkExpense  = (id, checked) => api.patch(`/expenses/${id}/check`, { is_checked: checked ? 1 : 0 });
+export const checkExpense  = (id, checked)    => api.patch(`/expenses/${id}/check`, { is_checked: checked ? 1 : 0 });
+export const setRecorrente = (id, recorrente) => api.patch(`/expenses/${id}/recorrente`, { recorrente });
 
 // Dashboard — aceita { month } para mês único ou { start, end } para período
 export const getDashboard  = (params) => api.get('/dashboard', { params });

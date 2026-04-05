@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   getDashboard, getPaymentMethods, getCategories,
   createExpense, updateExpense, updateGroup, deleteGroup,
-  getDateRange, fmtCurrency, fmtDate,
+  getDateRange, fmtCurrency, fmtDate, setRecorrente,
 } from '../api';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -93,6 +93,50 @@ function MonthYearPicker({ value, onChange, minMonth, maxMonth }) {
         {years.map((y) => <option key={y} value={y}>{y}</option>)}
       </select>
     </div>
+  );
+}
+
+// ─── Recorrente Badge ──────────────────────────────────────────────────────────
+function RecorrenteBadge({ expense, onUpdated }) {
+  const [confirming, setConfirming] = useState(false);
+  const [loading, setLoading]       = useState(false);
+
+  async function handleConfirm(e) {
+    e.stopPropagation();
+    setLoading(true);
+    try {
+      await setRecorrente(expense.id, 0);
+      onUpdated(expense.id, 0);
+    } finally {
+      setLoading(false);
+      setConfirming(false);
+    }
+  }
+
+  if (confirming) {
+    return (
+      <span className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+        <span className="text-[10px] text-gray-500 whitespace-nowrap">Remover recorrência?</span>
+        <button onClick={handleConfirm} disabled={loading}
+          className="text-[10px] bg-red-100 text-red-600 hover:bg-red-200 px-1.5 py-0.5 rounded transition-colors disabled:opacity-50">
+          {loading ? '…' : 'Sim'}
+        </button>
+        <button onClick={e => { e.stopPropagation(); setConfirming(false); }}
+          className="text-[10px] bg-gray-100 text-gray-500 hover:bg-gray-200 px-1.5 py-0.5 rounded transition-colors">
+          Não
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); setConfirming(true); }}
+      className="text-[10px] bg-blue-50 text-blue-500 hover:bg-blue-100 px-2 py-0.5 rounded-full transition-colors"
+      title="Clique para remover recorrência deste lançamento"
+    >
+      🔁 recorrente
+    </button>
   );
 }
 
@@ -391,6 +435,14 @@ export default function Dashboard() {
   };
 
   const handleSaved = () => { setEditingExpense(null); loadDashboard(); };
+  const handleRecorrenteUpdated = (id, value) => {
+    setData(d => ({
+      ...d,
+      recent_expenses: (d?.recent_expenses ?? []).map(e =>
+        e.id === id ? { ...e, recorrente: value } : e
+      ),
+    }));
+  };
   const handleDeleteConfirm = async () => {
     await deleteGroup(deleteTarget.group_id);
     setDeleteTarget(null);
@@ -536,6 +588,9 @@ export default function Dashboard() {
                         <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{e.payment_method}</span>
                         {e.installments > 1 && (
                           <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{e.installments}x</span>
+                        )}
+                        {!!e.recorrente && (
+                          <RecorrenteBadge expense={e} onUpdated={handleRecorrenteUpdated} />
                         )}
                       </div>
                     </div>

@@ -21,6 +21,7 @@ const INITIAL = {
   total_amount:     '',
   installments:     '1',
   is_international: false,
+  recorrente:       false,
 };
 
 export default function NewExpense() {
@@ -83,6 +84,7 @@ export default function NewExpense() {
         total_amount:     parseFloat(form.total_amount),
         installments:     isReceita ? 1 : (parseInt(form.installments, 10) || 1),
         is_international: !isReceita && form.is_international ? 1 : 0,
+        recorrente:       !isReceita && form.recorrente       ? 1 : 0,
       });
       setSuccess(res.data);
       setForm(INITIAL);
@@ -218,19 +220,34 @@ export default function NewExpense() {
               )}
             </div>
 
-            {/* 6. Compra internacional */}
+            {/* 6. Toggles: internacional + recorrente */}
             {!isReceita && (
-              <div className="flex items-center gap-3 py-1">
-                <button type="button"
-                  onClick={() => setForm((f) => ({ ...f, is_international: !f.is_international }))}
-                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-                    form.is_international ? 'bg-amber-400' : 'bg-gray-200'
-                  }`}>
-                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                    form.is_international ? 'translate-x-4.5' : 'translate-x-0.5'
-                  }`} style={{ transform: form.is_international ? 'translateX(18px)' : 'translateX(2px)' }} />
-                </button>
-                <span className="text-sm text-gray-600">🌍 Compra internacional</span>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 py-1">
+                  <button type="button"
+                    onClick={() => setForm((f) => ({ ...f, is_international: !f.is_international }))}
+                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                      form.is_international ? 'bg-amber-400' : 'bg-gray-200'
+                    }`}>
+                    <span className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
+                      style={{ transform: form.is_international ? 'translateX(18px)' : 'translateX(2px)' }} />
+                  </button>
+                  <span className="text-sm text-gray-600">🌍 Compra internacional</span>
+                </div>
+                <div className="flex items-center gap-3 py-1">
+                  <button type="button"
+                    onClick={() => setForm((f) => ({ ...f, recorrente: !f.recorrente }))}
+                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                      form.recorrente ? 'bg-blue-500' : 'bg-gray-200'
+                    }`}>
+                    <span className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
+                      style={{ transform: form.recorrente ? 'translateX(18px)' : 'translateX(2px)' }} />
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    🔁 Recorrente
+                    <span className="text-xs text-gray-400 ml-1">cobrada todo mês</span>
+                  </span>
+                </div>
               </div>
             )}
 
