@@ -45,7 +45,7 @@ function MonthNav({ value, onChange, minMonth, maxMonth }) {
   const maxY = maxMonth ? Number(maxMonth.split('-')[0]) : new Date().getFullYear();
   const years = [];
   for (let y = minY; y <= maxY; y++) years.push(y);
-  const atMin = minMonth ? value <= minMonth : false;
+  const atMin = false;
   const atMax = false;
 
   return (
@@ -453,7 +453,7 @@ export default function Dashboard() {
   const allExpenses = data?.recent_expenses ?? [];
   const filteredExpenses = catFilter ? allExpenses.filter((e) => e.category === catFilter) : allExpenses;
 
-  const atMin = minMonth ? month <= minMonth : false;
+  const atMin = false;
   const atMax = false;
 
   if (loading || !data) {
