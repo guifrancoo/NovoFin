@@ -31,6 +31,16 @@ function initWhatsappTables() {
     );
 
     CREATE INDEX IF NOT EXISTS idx_wa_sessions_phone ON whatsapp_sessions(phone_number);
+
+    CREATE TABLE IF NOT EXISTS bot_errors (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      phone      TEXT,
+      user_id    INTEGER,
+      message    TEXT,
+      error      TEXT,
+      stack      TEXT
+    );
   `);
 
   // Migration for existing tables
@@ -142,6 +152,24 @@ function setDefaultPaymentMethod(phone, method) {
   db.prepare('UPDATE whatsapp_users SET default_payment_method = ? WHERE phone_number = ?').run(method, phone);
 }
 
+// ─── Bot error logging ─────────────────────────────────────────────────────────
+
+function logBotError(phone, userId, message, err) {
+  try {
+    db.prepare(
+      'INSERT INTO bot_errors (phone, user_id, message, error, stack) VALUES (?, ?, ?, ?, ?)'
+    ).run(
+      phone   || null,
+      userId  || null,
+      message || null,
+      err?.message || String(err),
+      err?.stack   || null,
+    );
+  } catch (e) {
+    console.error('[whatsapp] failed to log bot error:', e.message);
+  }
+}
+
 module.exports = {
   initWhatsappTables,
   generateLinkCode,
@@ -152,4 +180,5 @@ module.exports = {
   clearSession,
   getDefaultPaymentMethod,
   setDefaultPaymentMethod,
+  logBotError,
 };

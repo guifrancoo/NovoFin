@@ -2,7 +2,7 @@ const express      = require('express');
 const twilio       = require('twilio');
 const { db }       = require('../database');
 const waDb         = require('../database/whatsapp');
-const { getDefaultPaymentMethod, setDefaultPaymentMethod } = require('../database/whatsapp');
+const { getDefaultPaymentMethod, setDefaultPaymentMethod, logBotError } = require('../database/whatsapp');
 const { sendWhatsApp, downloadMedia } = require('../services/twilio');
 const { parse }    = require('../services/parser');
 const { transcribe } = require('../services/assemblyai');
@@ -432,6 +432,7 @@ router.post('/',
       }
     } catch (err) {
       console.error('[whatsapp] unhandled error:', err);
+      logBotError(phone, userId, body, err);
       sendWhatsApp(phone, '⚠️ Ocorreu um erro inesperado. Tente novamente.').catch(console.error);
     }
   }

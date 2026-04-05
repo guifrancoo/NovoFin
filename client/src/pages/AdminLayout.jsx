@@ -1,8 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 export default function AdminLayout({ children }) {
   const navigate = useNavigate();
+  const [botErrors, setBotErrors] = useState(0);
+
+  useEffect(() => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setBotErrors(data.botErrors ?? 0); })
+      .catch(() => {});
+  }, []);
 
   function handleLogout() {
     localStorage.removeItem('adminToken');
@@ -40,6 +50,23 @@ export default function AdminLayout({ children }) {
               }
             >
               Usuários
+            </NavLink>
+            <NavLink
+              to="/admin/errors"
+              className={({ isActive }) =>
+                `relative text-xs px-3 py-1.5 rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-white/15 text-white font-medium'
+                    : 'text-white/55 hover:text-white hover:bg-white/10'
+                }`
+              }
+            >
+              Erros
+              {botErrors > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold leading-none rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+                  {botErrors > 99 ? '99+' : botErrors}
+                </span>
+              )}
             </NavLink>
           </nav>
         </div>

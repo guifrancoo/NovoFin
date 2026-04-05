@@ -10,6 +10,7 @@ import Profile        from './pages/Profile';
 import AdminLogin     from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers     from './pages/AdminUsers';
+import AdminErrors    from './pages/AdminErrors';
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem('token');
@@ -345,6 +346,14 @@ export default function App() {
         element={
           <RequireAdmin>
             <AdminUsers />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/errors"
+        element={
+          <RequireAdmin>
+            <AdminErrors />
           </RequireAdmin>
         }
       />

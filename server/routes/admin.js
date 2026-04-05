@@ -60,15 +60,20 @@ router.get('/stats', requireAdmin, (_req, res) => {
     WHERE created_at >= date('now', 'start of month')
   `).get().n;
 
-  const fileSize  = fs.existsSync(DB_PATH) ? fs.statSync(DB_PATH).size : 0;
-  const dbSizeKB  = Math.round(fileSize / 1024);
+  const fileSize = fs.existsSync(DB_PATH) ? fs.statSync(DB_PATH).size : 0;
+  const dbSizeKB = Math.round(fileSize / 1024);
+
+  const botErrors = db.prepare(`
+    SELECT COUNT(*) AS n FROM bot_errors
+    WHERE created_at >= datetime('now', '-24 hours')
+  `).get().n;
 
   res.json({
     totalUsers,
     activeUsers,
     totalTransactions,
     dbSizeKB,
-    botErrors: 0,
+    botErrors,
     newUsersThisMonth,
   });
 });
@@ -125,6 +130,20 @@ router.patch('/users/:id/plan', requireAdmin, (req, res) => {
 
   db.prepare('UPDATE users SET plan = ? WHERE id = ?').run(plan, req.params.id);
   res.json({ ok: true });
+});
+
+// GET /api/admin/errors — last 50 bot errors
+router.get('/errors', requireAdmin, (_req, res) => {
+  const { db } = require('../database');
+
+  const errors = db.prepare(`
+    SELECT id, created_at, phone, user_id, message, error, stack
+    FROM bot_errors
+    ORDER BY created_at DESC
+    LIMIT 50
+  `).all();
+
+  res.json(errors);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
