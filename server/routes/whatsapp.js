@@ -415,6 +415,27 @@ router.post('/',
     const body     = (req.body.Body || '').trim();
     const numMedia = parseInt(req.body.NumMedia || '0', 10);
 
+    // ── Subscription gate ────────────────────────────────────────────────────
+    if (userId) {
+      const sub = db.prepare('SELECT plan, status, expires_at FROM subscriptions WHERE user_id = ?').get(userId);
+      if (sub && sub.plan !== 'free') {
+        const isExpired    = sub.expires_at && new Date(sub.expires_at) < new Date();
+        const isSuspended  = sub.status === 'suspended';
+        const wasExpired   = sub.status === 'expired';
+
+        if (isSuspended || wasExpired || isExpired) {
+          if (isExpired && sub.status === 'active') {
+            db.prepare("UPDATE subscriptions SET status='expired', updated_at=? WHERE user_id=?")
+              .run(new Date().toISOString(), userId);
+          }
+          return sendWhatsApp(phone,
+            '⚠️ Seu plano expirou. Para continuar usando o NovoFin, entre em contato com o suporte para renovar sua assinatura.'
+          ).catch(console.error);
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     try {
       if (numMedia > 0) {
         const contentType = (req.body.MediaContentType0 || '').toLowerCase();

@@ -132,6 +132,100 @@ router.patch('/users/:id/plan', requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/admin/users/:id/subscription — subscription + last 10 payments
+router.get('/users/:id/subscription', requireAdmin, (req, res) => {
+  const { db } = require('../database');
+  const userId = req.params.id;
+
+  const user = db.prepare('SELECT id, username FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+  const sub = db.prepare('SELECT * FROM subscriptions WHERE user_id = ?').get(userId) || null;
+
+  const payments = db.prepare(`
+    SELECT * FROM payment_history
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+    LIMIT 10
+  `).all(userId);
+
+  res.json({ subscription: sub, payments });
+});
+
+// POST /api/admin/users/:id/payment — register a payment and upsert subscription
+router.post('/users/:id/payment', requireAdmin, (req, res) => {
+  const { db } = require('../database');
+  const userId = req.params.id;
+  const { amount, plan, months, notes } = req.body;
+
+  if (!amount || !plan || !months)
+    return res.status(400).json({ error: 'amount, plan e months são obrigatórios' });
+
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+  const now        = new Date();
+  const periodStart = now.toISOString();
+  const periodEnd   = new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  db.prepare(`
+    INSERT INTO payment_history (user_id, amount, plan, period_start, period_end, method, notes)
+    VALUES (?, ?, ?, ?, ?, 'manual', ?)
+  `).run(userId, amount, plan, periodStart, periodEnd, notes || null);
+
+  db.prepare(`
+    INSERT INTO subscriptions (user_id, plan, status, started_at, expires_at, updated_at)
+    VALUES (?, ?, 'active', ?, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      plan       = excluded.plan,
+      status     = 'active',
+      started_at = excluded.started_at,
+      expires_at = excluded.expires_at,
+      updated_at = excluded.updated_at
+  `).run(userId, plan, periodStart, periodEnd, periodStart);
+
+  db.prepare("UPDATE users SET plan = ? WHERE id = ?").run(plan, userId);
+
+  const subscription = db.prepare('SELECT * FROM subscriptions WHERE user_id = ?').get(userId);
+  res.json({ ok: true, subscription });
+});
+
+// PATCH /api/admin/users/:id/subscription — update subscription status
+router.patch('/users/:id/subscription', requireAdmin, (req, res) => {
+  const { db } = require('../database');
+  const userId  = req.params.id;
+  const { status } = req.body;
+  const allowed = ['active', 'expired', 'suspended'];
+
+  if (!allowed.includes(status))
+    return res.status(400).json({ error: `Status inválido. Use: ${allowed.join(', ')}` });
+
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+  const now = new Date().toISOString();
+
+  // Upsert subscription with new status
+  db.prepare(`
+    INSERT INTO subscriptions (user_id, plan, status, updated_at)
+    VALUES (?, 'free', ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      status     = excluded.status,
+      updated_at = excluded.updated_at
+  `).run(userId, status, now);
+
+  // Reflect suspended in users.plan; active/expired leave plan as-is
+  if (status === 'suspended') {
+    db.prepare("UPDATE users SET plan = 'suspended' WHERE id = ?").run(userId);
+  } else if (status === 'active') {
+    const sub = db.prepare('SELECT plan FROM subscriptions WHERE user_id = ?').get(userId);
+    if (sub) db.prepare('UPDATE users SET plan = ? WHERE id = ?').run(sub.plan, userId);
+  }
+
+  const subscription = db.prepare('SELECT * FROM subscriptions WHERE user_id = ?').get(userId);
+  res.json({ ok: true, subscription });
+});
+
 // GET /api/admin/db-health — database diagnostic
 router.get('/db-health', requireAdmin, (_req, res) => {
   const { db } = require('../database');

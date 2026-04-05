@@ -11,7 +11,8 @@ import AdminLogin     from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers     from './pages/AdminUsers';
 import AdminErrors    from './pages/AdminErrors';
-import AdminDbHealth  from './pages/AdminDbHealth';
+import AdminDbHealth       from './pages/AdminDbHealth';
+import AdminSubscriptions  from './pages/AdminSubscriptions';
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem('token');
@@ -355,6 +356,14 @@ export default function App() {
         element={
           <RequireAdmin>
             <AdminErrors />
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/subscriptions"
+        element={
+          <RequireAdmin>
+            <AdminSubscriptions />
           </RequireAdmin>
         }
       />

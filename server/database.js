@@ -221,6 +221,33 @@ function initDatabase() {
     WHERE user_id IS NULL
   `).run();
 
+  // --- Subscription tables ---
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER UNIQUE NOT NULL,
+      plan       TEXT    DEFAULT 'free',
+      status     TEXT    DEFAULT 'active',
+      started_at DATETIME,
+      expires_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS payment_history (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id      INTEGER NOT NULL,
+      amount       REAL    NOT NULL,
+      currency     TEXT    DEFAULT 'BRL',
+      plan         TEXT    NOT NULL,
+      period_start DATETIME,
+      period_end   DATETIME,
+      method       TEXT    DEFAULT 'manual',
+      notes        TEXT,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
   console.log('Database initialised at', DB_PATH);
 }
 

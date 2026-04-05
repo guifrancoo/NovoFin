@@ -52,6 +52,18 @@ export default function AdminLayout({ children }) {
               Usuários
             </NavLink>
             <NavLink
+              to="/admin/subscriptions"
+              className={({ isActive }) =>
+                `text-xs px-3 py-1.5 rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-white/15 text-white font-medium'
+                    : 'text-white/55 hover:text-white hover:bg-white/10'
+                }`
+              }
+            >
+              Assinaturas
+            </NavLink>
+            <NavLink
               to="/admin/errors"
               className={({ isActive }) =>
                 `relative text-xs px-3 py-1.5 rounded-md transition-colors ${
