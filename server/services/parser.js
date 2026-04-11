@@ -124,8 +124,8 @@ function getAllCreditCards(userId) {
   try {
     console.log('[parser] getAllCreditCards userId:', userId);
     const cards = db.prepare(
-      'SELECT id, name FROM payment_methods WHERE is_card = 1 ORDER BY id ASC'
-    ).all();
+      'SELECT id, name FROM payment_methods WHERE is_card = 1 AND (user_id = ? OR user_id IS NULL) ORDER BY id ASC'
+    ).all(userId ?? null);
     console.log('[parser] cards found:', JSON.stringify(cards));
     return cards;
   } catch (err) {
@@ -134,7 +134,7 @@ function getAllCreditCards(userId) {
   }
 }
 
-function detectExplicitPaymentMethod(text) {
+function detectExplicitPaymentMethod(text, userId) {
   const lower = text.toLowerCase();
 
   // Cash / instant-payment keywords
@@ -145,8 +145,8 @@ function detectExplicitPaymentMethod(text) {
   if (/\b(débito|debito|cartão de débito|cartao de debito|no débito|no debito)\b/.test(lower)) {
     try {
       const debit = db.prepare(
-        "SELECT name FROM payment_methods WHERE is_card = 0 OR card_type = 'debit' ORDER BY id ASC LIMIT 1"
-      ).get();
+        "SELECT name FROM payment_methods WHERE (is_card = 0 OR card_type = 'debit') AND (user_id = ? OR user_id IS NULL) ORDER BY id ASC LIMIT 1"
+      ).get(userId ?? null);
       if (debit) return debit.name;
     } catch (_) {}
     return 'Dinheiro';
@@ -154,7 +154,9 @@ function detectExplicitPaymentMethod(text) {
 
   // Card name keywords — fetch from DB to match registered cards
   try {
-    const cards = db.prepare('SELECT name FROM payment_methods WHERE is_card = 1').all();
+    const cards = db.prepare(
+      'SELECT name FROM payment_methods WHERE is_card = 1 AND (user_id = ? OR user_id IS NULL)'
+    ).all(userId ?? null);
     for (const card of cards) {
       if (lower.includes(card.name.toLowerCase())) return card.name;
     }
@@ -178,11 +180,13 @@ function detectInternational(text) {
   return intlKeywords.some(kw => lower.includes(kw));
 }
 
-function extractLocation(text) {
+function extractLocation(text, userId) {
   // Fetch card names to remove from location
   let cardNames = [];
   try {
-    cardNames = db.prepare('SELECT name FROM payment_methods').all().map(r => r.name.toLowerCase());
+    cardNames = db.prepare(
+      'SELECT name FROM payment_methods WHERE (user_id = ? OR user_id IS NULL)'
+    ).all(userId ?? null).map(r => r.name.toLowerCase());
   } catch (_) {}
 
   let clean = text
@@ -240,10 +244,10 @@ function parse(text, userId = null) {
   const date         = parseDate(text);
   const category     = suggestCategory(text);
   const type         = detectType(text, category);
-  const location     = extractLocation(text);
+  const location     = extractLocation(text, userId);
   const installments = parseInstallments(text);
   const isInternational = detectInternational(text);
-  const explicitMethod  = detectExplicitPaymentMethod(text);
+  const explicitMethod  = detectExplicitPaymentMethod(text, userId);
 
   let paymentMethod = null;
   let needsCardSelection = false;

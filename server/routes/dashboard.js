@@ -19,7 +19,9 @@ router.get('/', (req, res) => {
   const endMonth   = isRange ? end   : (month || now);
   const startDate  = `${startMonth}-01`;
   const endDate    = `${endMonth}-31`;
-  const uf = userFilter(req);
+  const uf  = userFilter(req);
+  const uid = req.user.id;
+  const CE  = `(SELECT name FROM categories WHERE exclude_from_reports = 1 AND (user_id = ? OR user_id IS NULL))`;
 
   // Receita e despesa do período
   const totalRow = db.prepare(`
@@ -28,9 +30,9 @@ router.get('/', (req, res) => {
       ROUND(COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0), 2) AS expense
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      AND category NOT IN ${CE}
       ${uf.sql}
-  `).get(startDate, endDate, ...uf.params);
+  `).get(startDate, endDate, uid, ...uf.params);
 
   // Saldo de caixa acumulado até o final do período
   const accRow = db.prepare(`
@@ -47,22 +49,22 @@ router.get('/', (req, res) => {
       ROUND(COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0), 2) AS expense
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      AND category NOT IN ${CE}
       ${uf.sql}
     GROUP BY payment_method
     ORDER BY expense DESC
-  `).all(startDate, endDate, ...uf.params);
+  `).all(startDate, endDate, uid, ...uf.params);
 
   const byCategory = db.prepare(`
     SELECT category,
            ROUND(COALESCE(SUM(installment_amount), 0), 2) AS total
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      AND category NOT IN ${CE}
       ${uf.sql}
     GROUP BY category
     ORDER BY total ASC
-  `).all(startDate, endDate, ...uf.params);
+  `).all(startDate, endDate, uid, ...uf.params);
 
   const recent = db.prepare(`
     SELECT * FROM expenses
@@ -83,11 +85,11 @@ router.get('/', (req, res) => {
              ROUND(COALESCE(ABS(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END)), 0), 2) AS expense
       FROM expenses
       WHERE purchase_date BETWEEN ? AND ?
-        AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+        AND category NOT IN ${CE}
         ${uf.sql}
       GROUP BY month
       ORDER BY month
-    `).all(startDate, endDate, ...uf.params);
+    `).all(startDate, endDate, uid, ...uf.params);
   } else {
     evolution = db.prepare(`
       SELECT strftime('%Y-%m', purchase_date) AS month,
@@ -96,11 +98,11 @@ router.get('/', (req, res) => {
       FROM expenses
       WHERE purchase_date >= date(?, '-5 months', 'start of month')
         AND purchase_date <  date(?, '+1 month',  'start of month')
-        AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+        AND category NOT IN ${CE}
         ${uf.sql}
       GROUP BY month
       ORDER BY month
-    `).all(`${startMonth}-01`, `${startMonth}-01`, ...uf.params);
+    `).all(`${startMonth}-01`, `${startMonth}-01`, uid, ...uf.params);
   }
 
   res.json({

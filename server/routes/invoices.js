@@ -13,8 +13,8 @@ function userFilter(req) {
 // agrupados por cartão. Sem limite fixo de meses.
 router.get('/', (req, res) => {
   const cardMethods = db.prepare(
-    'SELECT * FROM payment_methods WHERE is_card = 1 ORDER BY name'
-  ).all();
+    'SELECT * FROM payment_methods WHERE is_card = 1 AND (user_id = ? OR user_id IS NULL) ORDER BY name'
+  ).all(req.user.id);
   const uf = userFilter(req);
 
   const result = {};

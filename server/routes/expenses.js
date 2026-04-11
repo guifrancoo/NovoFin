@@ -100,10 +100,10 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'purchase_date, category, payment_method and total_amount are required' });
   }
 
-  const validMethod = db.prepare('SELECT 1 FROM payment_methods WHERE name = ?').get(payment_method);
+  const validMethod = db.prepare('SELECT 1 FROM payment_methods WHERE name = ? AND (user_id = ? OR user_id IS NULL)').get(payment_method, req.user.id);
   if (!validMethod) return res.status(400).json({ error: `Método de pagamento inválido: ${payment_method}` });
 
-  const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ?').get(category);
+  const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ? AND (user_id = ? OR user_id IS NULL)').get(category, req.user.id);
   if (!validCat) return res.status(400).json({ error: `Categoria inválida: ${category}` });
 
   if (Number(total_amount) === 0) return res.status(400).json({ error: 'total_amount cannot be zero' });
@@ -186,10 +186,10 @@ router.patch('/group/:group_id', (req, res) => {
     recorrente:       req.body.recorrente       !== undefined ? (req.body.recorrente       ? 1 : 0) : (first.recorrente       ?? 0),
   };
 
-  const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ?').get(merged.category);
+  const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ? AND (user_id = ? OR user_id IS NULL)').get(merged.category, req.user.id);
   if (!validCat) return res.status(400).json({ error: `Categoria inválida: ${merged.category}` });
 
-  const validMethod = db.prepare('SELECT 1 FROM payment_methods WHERE name = ?').get(merged.payment_method);
+  const validMethod = db.prepare('SELECT 1 FROM payment_methods WHERE name = ? AND (user_id = ? OR user_id IS NULL)').get(merged.payment_method, req.user.id);
   if (!validMethod) return res.status(400).json({ error: `Método inválido: ${merged.payment_method}` });
 
   const installmentAmount = parseFloat((merged.total_amount / rows.length).toFixed(2));
@@ -268,10 +268,10 @@ router.patch('/:id', (req, res) => {
     recorrente:         req.body.recorrente       !== undefined ? (req.body.recorrente       ? 1 : 0) : (existing.recorrente       ?? 0),
   };
 
-  const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ?').get(merged.category);
+  const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ? AND (user_id = ? OR user_id IS NULL)').get(merged.category, req.user.id);
   if (!validCat) return res.status(400).json({ error: `Categoria inválida: ${merged.category}` });
 
-  const validMethod = db.prepare('SELECT 1 FROM payment_methods WHERE name = ?').get(merged.payment_method);
+  const validMethod = db.prepare('SELECT 1 FROM payment_methods WHERE name = ? AND (user_id = ? OR user_id IS NULL)').get(merged.payment_method, req.user.id);
   if (!validMethod) return res.status(400).json({ error: `Método inválido: ${merged.payment_method}` });
 
   const isSingle = (existing.installments || 1) === 1;

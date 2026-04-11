@@ -212,6 +212,11 @@ function initDatabase() {
   // Migrate: add recorrente column to expenses (safe, idempotent)
   try { db.exec('ALTER TABLE expenses ADD COLUMN recorrente INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
 
+  // Migrate: add user_id to categories — NULL means global/visible to all users (safe, idempotent)
+  try { db.exec('ALTER TABLE categories ADD COLUMN user_id INTEGER DEFAULT NULL'); } catch (_) {}
+  // Migrate: add user_id to payment_methods — NULL means global/visible to all users (safe, idempotent)
+  try { db.exec('ALTER TABLE payment_methods ADD COLUMN user_id INTEGER DEFAULT NULL'); } catch (_) {}
+
   // Migrate: add card_type column to payment_methods (safe, idempotent)
   try { db.exec("ALTER TABLE payment_methods ADD COLUMN card_type TEXT NOT NULL DEFAULT 'cash'"); } catch (_) {}
   // Set card_type = 'credit' for existing credit cards

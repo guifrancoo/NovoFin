@@ -17,7 +17,9 @@ router.get('/by-category', (req, res) => {
   const { start, end } = req.query;
   const startDate = start ? `${start}-01` : '2000-01-01';
   const endDate   = end   ? `${end}-31`   : '2099-12-31';
-  const uf = userFilter(req);
+  const uf  = userFilter(req);
+  const uid = req.user.id;
+  const CE  = `(SELECT name FROM categories WHERE exclude_from_reports = 1 AND (user_id = ? OR user_id IS NULL))`;
 
   const catRows = db.prepare(`
     SELECT category,
@@ -25,11 +27,11 @@ router.get('/by-category', (req, res) => {
            COUNT(*) AS count
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      AND category NOT IN ${CE}
       ${uf.sql}
     GROUP BY category
     ORDER BY total ASC
-  `).all(startDate, endDate, ...uf.params);
+  `).all(startDate, endDate, uid, ...uf.params);
 
   // Subcategory breakdown per category
   const subRows = db.prepare(`
@@ -39,11 +41,11 @@ router.get('/by-category', (req, res) => {
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
       AND subcategory IS NOT NULL
-      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      AND category NOT IN ${CE}
       ${uf.sql}
     GROUP BY category, subcategory
     ORDER BY category, total ASC
-  `).all(startDate, endDate, ...uf.params);
+  `).all(startDate, endDate, uid, ...uf.params);
 
   const subMap = {};
   for (const r of subRows) {
@@ -64,7 +66,9 @@ router.get('/by-month', (req, res) => {
   const { start, end, category, payment_method } = req.query;
   const startDate = start ? `${start}-01` : '2000-01-01';
   const endDate   = end   ? `${end}-31`   : '2099-12-31';
-  const uf = userFilter(req);
+  const uf  = userFilter(req);
+  const uid = req.user.id;
+  const CE  = `(SELECT name FROM categories WHERE exclude_from_reports = 1 AND (user_id = ? OR user_id IS NULL))`;
 
   let sql = `
     SELECT strftime('%Y-%m', purchase_date) AS month,
@@ -73,10 +77,10 @@ router.get('/by-month', (req, res) => {
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
       AND installment_amount < 0
-      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      AND category NOT IN ${CE}
       ${uf.sql}
   `;
-  const params = [startDate, endDate, ...uf.params];
+  const params = [startDate, endDate, uid, ...uf.params];
 
   if (category)       { sql += ` AND category = ?`;       params.push(category); }
   if (payment_method) { sql += ` AND payment_method = ?`; params.push(payment_method); }
@@ -90,7 +94,9 @@ router.get('/by-payment-method', (req, res) => {
   const { start, end } = req.query;
   const startDate = start ? `${start}-01` : '2000-01-01';
   const endDate   = end   ? `${end}-31`   : '2099-12-31';
-  const uf = userFilter(req);
+  const uf  = userFilter(req);
+  const uid = req.user.id;
+  const CE  = `(SELECT name FROM categories WHERE exclude_from_reports = 1 AND (user_id = ? OR user_id IS NULL))`;
 
   const rows = db.prepare(`
     SELECT payment_method,
@@ -99,11 +105,11 @@ router.get('/by-payment-method', (req, res) => {
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
       AND installment_amount < 0
-      AND category NOT IN (SELECT name FROM categories WHERE exclude_from_reports = 1)
+      AND category NOT IN ${CE}
       ${uf.sql}
     GROUP BY payment_method
     ORDER BY total DESC
-  `).all(startDate, endDate, ...uf.params);
+  `).all(startDate, endDate, uid, ...uf.params);
 
   res.json(rows);
 });

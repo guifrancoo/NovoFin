@@ -3,9 +3,13 @@ const { db } = require('../database');
 
 const router = Router();
 
-// GET /api/payment-methods
-router.get('/', (_req, res) => {
-  res.json(db.prepare('SELECT * FROM payment_methods ORDER BY name').all());
+// GET /api/payment-methods — returns global methods + user's own methods
+router.get('/', (req, res) => {
+  res.json(
+    db.prepare(
+      'SELECT * FROM payment_methods WHERE (user_id = ? OR user_id IS NULL) ORDER BY name'
+    ).all(req.user.id)
+  );
 });
 
 // POST /api/payment-methods  { name, card_type } or { name, is_card } (legacy)
@@ -19,8 +23,8 @@ router.post('/', (req, res) => {
 
   try {
     const info = db.prepare(
-      'INSERT INTO payment_methods (name, is_card, card_type) VALUES (?, ?, ?)'
-    ).run(name.trim(), finalIsCard, finalCardType);
+      'INSERT INTO payment_methods (name, is_card, card_type, user_id) VALUES (?, ?, ?, ?)'
+    ).run(name.trim(), finalIsCard, finalCardType, req.user.id);
     const row = db.prepare('SELECT * FROM payment_methods WHERE id = ?').get(info.lastInsertRowid);
     res.status(201).json(row);
   } catch (e) {
@@ -29,14 +33,20 @@ router.post('/', (req, res) => {
   }
 });
 
-// DELETE /api/payment-methods/:id
+// DELETE /api/payment-methods/:id — only own methods can be deleted (not global ones)
 router.delete('/:id', (req, res) => {
   const { id } = req.params;
-  const inUse = db.prepare('SELECT 1 FROM expenses WHERE payment_method = (SELECT name FROM payment_methods WHERE id = ?) LIMIT 1').get(id);
+  const method = db.prepare('SELECT * FROM payment_methods WHERE id = ?').get(id);
+  if (!method) return res.status(404).json({ error: 'Not found' });
+  if (method.user_id === null) return res.status(403).json({ error: 'Métodos globais não podem ser removidos' });
+  if (method.user_id !== req.user.id) return res.status(403).json({ error: 'Acesso negado' });
+
+  const inUse = db.prepare(
+    'SELECT 1 FROM expenses WHERE payment_method = ? AND user_id = ? LIMIT 1'
+  ).get(method.name, req.user.id);
   if (inUse) return res.status(409).json({ error: 'Este método está em uso em lançamentos existentes e não pode ser removido' });
 
-  const info = db.prepare('DELETE FROM payment_methods WHERE id = ?').run(id);
-  if (info.changes === 0) return res.status(404).json({ error: 'Not found' });
+  db.prepare('DELETE FROM payment_methods WHERE id = ?').run(id);
   res.json({ deleted: true });
 });
 

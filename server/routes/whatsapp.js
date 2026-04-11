@@ -35,8 +35,10 @@ function validateTwilioSignature(req, res, next) {
 }
 
 // ─── Payment method list ───────────────────────────────────────────────────────
-function getAllPaymentMethods() {
-  return db.prepare('SELECT id, name FROM payment_methods ORDER BY is_card DESC, id ASC').all();
+function getAllPaymentMethods(userId) {
+  return db.prepare(
+    'SELECT id, name FROM payment_methods WHERE (user_id = ? OR user_id IS NULL) ORDER BY is_card DESC, id ASC'
+  ).all(userId ?? null);
 }
 
 // ─── Currency formatter ────────────────────────────────────────────────────────
@@ -205,8 +207,8 @@ async function handleAjuda(phone) {
     `Envie um áudio descrevendo o gasto — será transcrito automaticamente.`);
 }
 
-async function handlePadrao(phone, args) {
-  const methods = getAllPaymentMethods();
+async function handlePadrao(phone, args, userId) {
+  const methods = getAllPaymentMethods(userId);
 
   // If user sent a number as argument (e.g. "/padrao 2")
   const num = parseInt(args.trim());
@@ -237,14 +239,14 @@ async function handleText(body, phone, userId) {
   if (lower === '/saldo')  return handleSaldo(userId, phone);
   if (lower === '/resumo') return handleResumo(userId, phone);
   if (lower === '/ajuda')  return handleAjuda(phone);
-  if (lower.startsWith('/padrao')) return handlePadrao(phone, body.slice(7).trim());
+  if (lower.startsWith('/padrao')) return handlePadrao(phone, body.slice(7).trim(), userId);
 
   // Confirmation of pending transaction
   const pending = waDb.getPendingSession(phone);
   if (pending) {
     // Awaiting default payment method selection
     if (pending.awaitingDefault && /^[1-9]$/.test(lower)) {
-      const methods = getAllPaymentMethods();
+      const methods = getAllPaymentMethods(userId);
       const idx = parseInt(lower) - 1;
       if (idx >= 0 && idx < methods.length) {
         const chosen = methods[idx].name;
@@ -291,7 +293,7 @@ async function handleText(body, phone, userId) {
     if (defaultMethod) {
       parsed.paymentMethod = defaultMethod;
     } else {
-      const methods = getAllPaymentMethods();
+      const methods = getAllPaymentMethods(userId);
       const methodList = methods.map((m, i) => `${i + 1}. ${m.name}`).join('\n');
       waDb.savePendingSession(phone, { ...parsed, awaitingDefault: true, availableMethods: methods });
       return sendWhatsApp(phone,
@@ -337,7 +339,7 @@ async function handleAudio(mediaUrl, phone, userId) {
       if (defaultMethod) {
         parsed.paymentMethod = defaultMethod;
       } else {
-        const methods = getAllPaymentMethods();
+        const methods = getAllPaymentMethods(userId);
         const methodList = methods.map((m, i) => `${i + 1}. ${m.name}`).join('\n');
         waDb.savePendingSession(phone, { ...parsed, awaitingDefault: true, availableMethods: methods });
         return sendWhatsApp(phone,
