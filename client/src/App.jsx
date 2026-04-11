@@ -187,9 +187,19 @@ function Sidebar({ username, onLogout }) {
             <div className="text-white/75 text-xs truncate">{username}</div>
           </div>
         </div>
+        {localStorage.getItem('is_admin') === 'true' && (
+          <a
+            href="https://graofin.up.railway.app/admin/dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 block w-full text-left text-white/40 hover:text-white/70 text-xs px-1 py-1 transition-colors"
+          >
+            Painel Admin
+          </a>
+        )}
         <button
           onClick={onLogout}
-          className="mt-2 w-full text-left text-white/40 hover:text-white/70 text-xs px-1 py-1 transition-colors"
+          className="mt-1 w-full text-left text-white/40 hover:text-white/70 text-xs px-1 py-1 transition-colors"
         >
           Sair
         </button>

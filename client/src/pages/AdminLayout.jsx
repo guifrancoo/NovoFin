@@ -94,12 +94,22 @@ export default function AdminLayout({ children }) {
             </NavLink>
           </nav>
         </div>
-        <button
-          onClick={handleLogout}
-          className="text-white/60 hover:text-white text-xs border border-white/20 hover:border-white/40 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          Sair
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href="https://graofin.up.railway.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs px-3 py-1.5 rounded-md transition-colors text-white/55 hover:text-white hover:bg-white/10"
+          >
+            ← Ir para o app
+          </a>
+          <button
+            onClick={handleLogout}
+            className="text-white/60 hover:text-white text-xs border border-white/20 hover:border-white/40 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Sair
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 p-5 sm:p-8">
