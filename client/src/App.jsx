@@ -187,7 +187,7 @@ function Sidebar({ username, onLogout }) {
             <div className="text-white/75 text-xs truncate">{username}</div>
           </div>
         </div>
-        {localStorage.getItem('is_admin') === 'true' && (
+        {(localStorage.getItem('is_admin') === '1' || localStorage.getItem('username') === 'admin') && (
           <a
             href="https://graofin.up.railway.app/admin/dashboard"
             target="_blank"
