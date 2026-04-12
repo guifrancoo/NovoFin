@@ -53,8 +53,15 @@ router.get('/by-category', (req, res) => {
     subMap[r.category].push({ subcategory: r.subcategory, total: r.total, count: r.count });
   }
 
+  // Build is_income map: category name → 1|0
+  const incomeMap = {};
+  db.prepare('SELECT name, is_income FROM categories WHERE (user_id = ? OR user_id IS NULL)')
+    .all(uid)
+    .forEach((r) => { if (r.is_income) incomeMap[r.name] = 1; });
+
   const result = catRows.map((r) => ({
     ...r,
+    is_income: incomeMap[r.category] ?? 0,
     subcategories: subMap[r.category] || [],
   }));
 

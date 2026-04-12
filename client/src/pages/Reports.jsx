@@ -81,6 +81,7 @@ export default function Reports() {
   const [byMethod, setByMethod]     = useState([]);
   const [loading, setLoading]       = useState(false);
   const [expanded, setExpanded]     = useState({});
+  const [viewMode, setViewMode]     = useState('despesas');
 
   useEffect(() => {
     getDateRange().then((r) => { if (r.data.min_month) setMinMonth(r.data.min_month); });
@@ -101,12 +102,17 @@ export default function Reports() {
     }).finally(() => setLoading(false));
   }, [start, end]);
 
-  const grandAbsTotal = byCategory.reduce((s, r) => s + Math.abs(r.total), 0);
-  const grandNetTotal = byCategory.reduce((s, r) => s + r.total, 0);
-  const grandTotal    = grandAbsTotal; // kept for bar chart label compatibility
-  const chartData     = byCategory.map((r) => ({ ...r, totalAbs: Math.abs(r.total) }));
+  const displayData   = React.useMemo(() => {
+    const data = viewMode === 'despesas' ? byCategory.filter((r) => !r.is_income) : byCategory;
+    return [...data].sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+  }, [byCategory, viewMode]);
+
+  const grandAbsTotal = displayData.reduce((s, r) => s + Math.abs(r.total), 0);
+  const grandNetTotal = displayData.reduce((s, r) => s + r.total, 0);
+  const grandTotal    = grandAbsTotal;
+  const chartData     = displayData.map((r) => ({ ...r, totalAbs: Math.abs(r.total) }));
   const toggleCat    = (cat) => setExpanded((p) => ({ ...p, [cat]: !p[cat] }));
-  const barChartH    = Math.max(220, byCategory.length * 34);
+  const barChartH    = Math.max(220, displayData.length * 34);
   const methodTotal  = byMethod.reduce((s, r) => s + r.total, 0);
 
   return (
@@ -120,6 +126,18 @@ export default function Reports() {
         <span className="text-xs text-gray-400">até</span>
         <MonthYearPicker value={end} onChange={setEnd} minMonth={minMonth} maxMonth={maxMonth} />
         {loading && <span className="text-xs text-gray-400 animate-pulse ml-2">Carregando...</span>}
+        <div className="ml-auto flex items-center bg-gray-100 rounded-lg p-0.5 text-xs">
+          <button
+            onClick={() => { setViewMode('despesas'); setExpanded({}); }}
+            className={`px-3 py-1.5 rounded-md transition-all font-medium ${viewMode === 'despesas' ? 'bg-white shadow-sm text-navy' : 'text-gray-500 hover:text-gray-700'}`}>
+            Despesas
+          </button>
+          <button
+            onClick={() => { setViewMode('completo'); setExpanded({}); }}
+            className={`px-3 py-1.5 rounded-md transition-all font-medium ${viewMode === 'completo' ? 'bg-white shadow-sm text-navy' : 'text-gray-500 hover:text-gray-700'}`}>
+            Completo
+          </button>
+        </div>
       </div>
 
       {!loading && (
@@ -145,8 +163,12 @@ export default function Reports() {
                         width={140} axisLine={false} tickLine={false} />
                       <Tooltip content={<CustomTooltip grandTotal={grandAbsTotal} />} />
                       <Bar dataKey="totalAbs" radius={[0, 4, 4, 0]} maxBarSize={20}>
-                        {chartData.map((_, i) => (
-                          <Cell key={i} fill={CAT_COLORS[i % CAT_COLORS.length]} />
+                        {chartData.map((entry, i) => (
+                          <Cell key={i} fill={
+                            viewMode === 'completo'
+                              ? (entry.is_income ? '#27ae60' : '#e74c3c')
+                              : CAT_COLORS[i % CAT_COLORS.length]
+                          } />
                         ))}
                         <LabelList dataKey="totalAbs" position="right"
                           formatter={(v) => {
@@ -165,10 +187,10 @@ export default function Reports() {
             <div className="bg-white rounded-xl border border-gray-100 overflow-hidden flex flex-col">
               <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
                 <span className="text-sm font-semibold text-navy">Por categoria</span>
-                <span className="text-xs text-gray-400">{byCategory.length} categorias</span>
+                <span className="text-xs text-gray-400">{displayData.length} categorias</span>
               </div>
               <div className="overflow-y-auto flex-1" style={{ maxHeight: barChartH + 32 }}>
-                {byCategory.length === 0 ? (
+                {displayData.length === 0 ? (
                   <div className="p-8 text-center text-sm text-gray-400">Sem dados</div>
                 ) : (
                   <table className="w-full">
@@ -180,11 +202,13 @@ export default function Reports() {
                       </tr>
                     </thead>
                     <tbody>
-                      {byCategory.map((r, i) => {
+                      {displayData.map((r, i) => {
                         const pct = grandAbsTotal > 0 ? ((Math.abs(r.total) / grandAbsTotal) * 100).toFixed(1) : '0.0';
                         const hasSubcats = r.subcategories?.length > 0;
                         const isOpen = expanded[r.category];
-                        const color = CAT_COLORS[i % CAT_COLORS.length];
+                        const color = viewMode === 'completo'
+                          ? (r.is_income ? '#27ae60' : '#e74c3c')
+                          : CAT_COLORS[i % CAT_COLORS.length];
                         return (
                           <React.Fragment key={r.category}>
                             <tr
