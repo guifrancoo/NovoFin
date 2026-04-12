@@ -295,13 +295,14 @@ function CategoriesSection() {
     catch (e) { setCatErr(e.response?.data?.error || 'Erro ao remover'); }
   };
 
-  const addSub = async () => {
+  const addSub = async (catId) => {
     setSubErr('');
     if (!subName.trim()) return setSubErr('Digite um nome');
-    if (!subCatId) return setSubErr('Selecione uma categoria');
+    const cid = Number(catId ?? subCatId);
+    if (!cid) return setSubErr('Selecione uma categoria');
     try {
-      await createSubcategory({ category_id: Number(subCatId), name: subName.trim() });
-      setSubName(''); loadSubs(); setExpandedCat(Number(subCatId));
+      await createSubcategory({ category_id: cid, name: subName.trim() });
+      setSubName(''); setSubCatId(String(cid)); loadSubs(); setExpandedCat(cid);
     } catch (e) { setSubErr(e.response?.data?.error || 'Erro ao adicionar'); }
   };
 
@@ -372,17 +373,20 @@ function CategoriesSection() {
                   ))}
                   {subs.length === 0 && <p className="text-xs text-gray-400 py-1">Nenhuma subcategoria</p>}
                   {/* Add subcategory inline */}
-                  <div className="flex gap-2 items-center pt-2 border-t border-gray-50 min-h-[44px]">
-                    <input type="text" value={subCatId === String(c.id) ? subName : ''}
-                      onChange={(e) => { setSubCatId(String(c.id)); setSubName(e.target.value); }}
-                      onKeyDown={(e) => e.key === 'Enter' && addSub()}
-                      placeholder="Nova subcategoria..." className={`${inputCls} flex-1 text-xs`} />
-                    <button onClick={() => { setSubCatId(String(c.id)); addSub(); }}
-                      className="px-3 py-3 sm:py-2 rounded-lg text-xs font-medium bg-navy hover:bg-navy-light text-white transition-colors whitespace-nowrap min-h-[44px] sm:min-h-0">
-                      Adicionar
-                    </button>
+                  <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                    <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Adicionar subcategoria</div>
+                    <div className="flex gap-2 items-center min-h-[44px]">
+                      <input type="text" value={expandedCat === c.id ? subName : ''}
+                        onChange={(e) => { setSubCatId(String(c.id)); setSubName(e.target.value); }}
+                        onKeyDown={(e) => e.key === 'Enter' && addSub(c.id)}
+                        placeholder="Nome da subcategoria..." className={`${inputCls} flex-1 text-xs`} />
+                      <button onClick={() => addSub(c.id)}
+                        className="px-3 py-3 sm:py-2 rounded-lg text-xs font-medium bg-navy hover:bg-navy-light text-white transition-colors whitespace-nowrap min-h-[44px] sm:min-h-0">
+                        Adicionar
+                      </button>
+                    </div>
+                    {expandedCat === c.id && subErr && <ErrorBanner msg={subErr} />}
                   </div>
-                  {subCatId === String(c.id) && subErr && <ErrorBanner msg={subErr} />}
                 </div>
               )}
             </div>

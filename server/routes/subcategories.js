@@ -6,19 +6,21 @@ const router = Router();
 // GET /api/subcategories?category_id=X
 router.get('/', (req, res) => {
   const { category_id } = req.query;
+  const uid = req.user?.id ?? null;
   if (category_id) {
     const rows = db.prepare(
       'SELECT * FROM subcategories WHERE category_id = ? ORDER BY name'
     ).all(Number(category_id));
     return res.json(rows);
   }
-  // Return all subcategories grouped by category
+  // Return all subcategories for categories visible to this user
   const rows = db.prepare(`
     SELECT s.*, c.name AS category_name
     FROM subcategories s
     JOIN categories c ON c.id = s.category_id
+    WHERE (c.user_id = ? OR c.user_id IS NULL)
     ORDER BY c.name, s.name
-  `).all();
+  `).all(uid);
   res.json(rows);
 });
 
