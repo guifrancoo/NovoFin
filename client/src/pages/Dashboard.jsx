@@ -570,55 +570,102 @@ export default function Dashboard() {
                   {catFilter ? `Nenhum lançamento em "${catFilter}".` : 'Nenhum lançamento neste período.'}
                 </div>
               ) : (
-                filteredExpenses.map((e) => (
-                  <div key={e.id}
-                    onClick={() => setEditingExpense(e)}
-                    className={`flex items-center gap-2 px-3 py-2 border-b border-gray-50 last:border-0 group cursor-pointer ${e.is_international ? 'bg-amber-50/50' : 'hover:bg-gray-50/60'} transition-colors`}>
-                    {/* Ícone categoria */}
-                    <CatIcon category={e.category} isIncome={e.total_amount > 0} />
-                    {/* Date */}
-                    <div className="text-xs text-gray-400 w-16 shrink-0">{fmtDate(e.purchase_date)}</div>
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        {!!e.is_international && <span className="text-xs">🌍</span>}
-                        <span className="text-xs font-medium text-navy leading-tight">{e.location || e.category}</span>
+                <>
+                  {/* Desktop table header */}
+                  <div className="hidden md:flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+                    <div className="w-7 shrink-0" />
+                    <div className="w-[100px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Data</div>
+                    <div className="flex-1 min-w-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Descrição</div>
+                    <div className="w-[140px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Categoria</div>
+                    <div className="w-[100px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Método</div>
+                    <div className="w-[80px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-center">Parcelas</div>
+                    <div className="w-[110px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-right">Valor</div>
+                    <div className="w-[62px] shrink-0" />
+                  </div>
+
+                  {filteredExpenses.map((e) => (
+                    <div key={e.id}
+                      onClick={() => setEditingExpense(e)}
+                      className={`flex items-center gap-2 px-3 py-2 border-b border-gray-50 last:border-0 group cursor-pointer ${e.is_international ? 'bg-amber-50/50' : 'hover:bg-gray-50/60'} transition-colors`}>
+
+                      {/* Icon — always visible */}
+                      <CatIcon category={e.category} isIncome={e.total_amount > 0} />
+
+                      {/* ── Mobile layout (stacked) ── */}
+                      <div className="flex-1 min-w-0 md:hidden">
+                        <div className="text-[10px] text-gray-400">{fmtDate(e.purchase_date)}</div>
+                        <div className="flex items-center gap-1.5">
+                          {!!e.is_international && <span className="text-xs">🌍</span>}
+                          <span className="text-xs font-medium text-navy leading-tight">{e.location || e.category}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-gray-400">{e.category}{e.subcategory ? ` › ${e.subcategory}` : ''}</span>
+                          <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{e.payment_method}</span>
+                          {e.installments > 1 && (
+                            <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{e.installments}x</span>
+                          )}
+                          {!!e.recorrente && (
+                            <RecorrenteBadge expense={e} onUpdated={handleRecorrenteUpdated} />
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-gray-400">{e.category}{e.subcategory ? ` › ${e.subcategory}` : ''}</span>
-                        <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{e.payment_method}</span>
+                      <div className={`md:hidden ml-auto pl-2 shrink-0 text-right text-xs font-semibold whitespace-nowrap ${e.total_amount < 0 ? 'text-danger' : 'text-success'}`}>
+                        {e.total_amount < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(e.total_amount))}
+                      </div>
+
+                      {/* ── Desktop layout (table columns) ── */}
+                      {/* DATA */}
+                      <div className="hidden md:block w-[100px] shrink-0 text-xs text-gray-400 tabular-nums">
+                        {fmtDate(e.purchase_date)}
+                      </div>
+                      {/* DESCRIÇÃO */}
+                      <div className="hidden md:flex flex-1 min-w-0 items-center gap-1.5">
+                        {!!e.is_international && <span className="text-xs shrink-0">🌍</span>}
+                        <span className="text-xs font-medium text-navy truncate">{e.location || e.category}</span>
+                        {!!e.recorrente && (
+                          <span className="shrink-0"><RecorrenteBadge expense={e} onUpdated={handleRecorrenteUpdated} /></span>
+                        )}
+                      </div>
+                      {/* CATEGORIA */}
+                      <div className="hidden md:block w-[140px] shrink-0 text-xs text-gray-500 truncate" title={e.category}>
+                        {e.category}{e.subcategory ? ` › ${e.subcategory}` : ''}
+                      </div>
+                      {/* MÉTODO */}
+                      <div className="hidden md:block w-[100px] shrink-0 text-xs text-gray-500 truncate">
+                        {e.payment_method}
+                      </div>
+                      {/* PARCELAS */}
+                      <div className="hidden md:flex w-[80px] shrink-0 justify-center">
                         {e.installments > 1 && (
                           <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{e.installments}x</span>
                         )}
-                        {!!e.recorrente && (
-                          <RecorrenteBadge expense={e} onUpdated={handleRecorrenteUpdated} />
-                        )}
+                      </div>
+                      {/* VALOR */}
+                      <div className={`hidden md:block w-[110px] shrink-0 text-right text-xs font-semibold whitespace-nowrap ${e.total_amount < 0 ? 'text-danger' : 'text-success'}`}>
+                        {e.total_amount < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(e.total_amount))}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="hidden md:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={(ev) => { ev.stopPropagation(); setEditingExpense(e); }}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                        <button onClick={(ev) => { ev.stopPropagation(); setDeleteTarget(e); }}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6"/><path d="M14 11v6"/>
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </button>
                       </div>
                     </div>
-                    {/* Amount */}
-                    <div className={`ml-auto pl-2 shrink-0 text-right text-xs font-semibold whitespace-nowrap ${e.total_amount < 0 ? 'text-danger' : 'text-success'}`}>
-                      {e.total_amount < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(e.total_amount))}
-                    </div>
-                    {/* Actions */}
-                    <div className="hidden md:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button onClick={() => setEditingExpense(e)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-                      </button>
-                      <button onClick={() => setDeleteTarget(e)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                          <path d="M10 11v6"/><path d="M14 11v6"/>
-                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </>
               )}
             </div>
           </div>
