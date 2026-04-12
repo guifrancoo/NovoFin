@@ -28,13 +28,10 @@ function ErrorBanner({ msg }) {
   return <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{msg}</p>;
 }
 
-function AddBtn({ onClick, children, variant = 'navy' }) {
-  const cls = variant === 'danger'
-    ? 'bg-red-500 hover:bg-red-600 text-white'
-    : 'bg-navy hover:bg-navy-light text-white';
+function AddBtn({ onClick, children }) {
   return (
     <button onClick={onClick}
-      className={`w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${cls}`}>
+      className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-medium bg-navy hover:bg-navy-light text-white transition-colors whitespace-nowrap">
       {children}
     </button>
   );
@@ -55,15 +52,110 @@ function TypeBadge({ type }) {
   );
 }
 
+// ─── Inline cutoff panel (per credit card) ────────────────────────────────────
+function CutoffPanel({ method, allCutoffs, onChanged }) {
+  const [year, setYear]   = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [day, setDay]     = useState(25);
+  const [err, setErr]     = useState('');
+
+  const myCutoffs = allCutoffs.filter((c) => c.payment_method_id === method.id);
+  const years = [
+    new Date().getFullYear() - 1,
+    new Date().getFullYear(),
+    new Date().getFullYear() + 1,
+  ];
+
+  const save = async () => {
+    setErr('');
+    try {
+      await saveCutoffDate({ payment_method_id: method.id, year, month, cutoff_day: day });
+      onChanged();
+    } catch (e) { setErr(e.response?.data?.error || 'Erro ao salvar'); }
+  };
+
+  const remove = async (id) => {
+    setErr('');
+    try { await deleteCutoffDate(id); onChanged(); }
+    catch (e) { setErr(e.response?.data?.error || 'Erro ao remover'); }
+  };
+
+  return (
+    <div className="border-t border-gray-100 bg-gray-50/40 px-4 py-3 space-y-3">
+      {/* Existing cutoffs */}
+      {myCutoffs.length === 0 ? (
+        <p className="text-xs text-gray-400">Nenhuma data configurada. Padrão: dia 25.</p>
+      ) : (
+        <div className="space-y-1">
+          {myCutoffs.map((c) => {
+            const cutMonth = `${MONTH_NAMES[c.month - 1]} ${c.year}`;
+            const nextM    = c.month === 12
+              ? `Jan ${c.year + 1}`
+              : `${MONTH_NAMES[c.month]} ${c.year}`;
+            return (
+              <div key={c.id} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-navy">{cutMonth}</span>
+                  <span className="text-xs text-gray-400">· dia {c.cutoff_day}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px]">
+                  <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">até: {cutMonth}</span>
+                  <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">após: {nextM}</span>
+                  <button onClick={() => remove(c.id)}
+                    className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors ml-1">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add cutoff form */}
+      <div className="flex flex-wrap gap-2 items-end pt-1 border-t border-gray-100">
+        <div>
+          <label className={labelCls}>Ano</label>
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={inputCls}>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>Mês</label>
+          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={inputCls}>
+            {MONTH_NAMES.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>Dia de corte</label>
+          <input type="number" min="1" max="31" value={day}
+            onChange={(e) => setDay(Number(e.target.value))}
+            className={`${inputCls} w-20`} />
+        </div>
+        <AddBtn onClick={save}>Salvar</AddBtn>
+      </div>
+      <ErrorBanner msg={err} />
+    </div>
+  );
+}
+
 // ─── Cartões e Métodos de Pagamento ───────────────────────────────────────────
 function PaymentMethodsSection() {
-  const [methods, setMethods] = useState([]);
-  const [name, setName]       = useState('');
-  const [tipo, setTipo]       = useState('cash'); // 'credit' | 'debit' | 'cash'
-  const [err, setErr]         = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(null); // id a confirmar
+  const [methods, setMethods]               = useState([]);
+  const [allCutoffs, setAllCutoffs]         = useState([]);
+  const [name, setName]                     = useState('');
+  const [tipo, setTipo]                     = useState('cash');
+  const [err, setErr]                       = useState('');
+  const [confirmDelete, setConfirmDelete]   = useState(null);
+  const [expandedCardId, setExpandedCardId] = useState(null);
 
-  const load = useCallback(() => getPaymentMethods().then((r) => setMethods(r.data)), []);
+  const load = useCallback(() =>
+    Promise.all([getPaymentMethods(), getAllCutoffDates()])
+      .then(([m, c]) => { setMethods(m.data); setAllCutoffs(c.data); }),
+  []);
+
   useEffect(() => { load(); }, [load]);
 
   const add = async () => {
@@ -78,6 +170,7 @@ function PaymentMethodsSection() {
   const remove = async (id) => {
     setErr('');
     setConfirmDelete(null);
+    if (expandedCardId === id) setExpandedCardId(null);
     try { await deletePaymentMethod(id); load(); }
     catch (e) { setErr(e.response?.data?.error || 'Erro ao remover'); }
   };
@@ -85,33 +178,60 @@ function PaymentMethodsSection() {
   return (
     <SectionCard
       title="Cartões e métodos de pagamento"
-      description="Gerencie seus cartões e formas de pagamento. Cartões de crédito têm fatura e data de corte.">
+      description="Gerencie seus cartões e formas de pagamento. Clique nas datas de corte de um cartão de crédito para expandir.">
 
-      {/* Lista */}
       <div className="space-y-2">
         {methods.map((m) => {
-          const cardType = m.card_type || (m.is_card ? 'credit' : 'cash');
+          const cardType  = m.card_type || (m.is_card ? 'credit' : 'cash');
+          const isCredit  = cardType === 'credit';
+          const myCutoffs = allCutoffs.filter((c) => c.payment_method_id === m.id);
+          const isOpen    = expandedCardId === m.id;
+
           return (
-            <div key={m.id} className="flex items-center justify-between px-3 py-2.5 border border-gray-100 rounded-lg">
-              <div className="flex items-center gap-2">
+            <div key={m.id} className="border border-gray-100 rounded-lg overflow-hidden">
+              {/* Row */}
+              <div className="flex items-center gap-2 px-3 py-2.5">
                 <TypeBadge type={cardType} />
-                <span className="text-xs font-medium text-navy">{m.name}</span>
+                <span className="text-xs font-medium text-navy flex-1">{m.name}</span>
+
+                {/* Credit card: cutoff toggle */}
+                {isCredit && (
+                  <button
+                    onClick={() => setExpandedCardId(isOpen ? null : m.id)}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-navy transition-colors mr-2">
+                    <span>
+                      {myCutoffs.length} {myCutoffs.length === 1 ? 'data de corte' : 'datas de corte'}
+                    </span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2"
+                      className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+                )}
+
+                {/* Delete */}
+                {confirmDelete === m.id ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-red-600">Confirmar?</span>
+                    <button onClick={() => remove(m.id)}
+                      className="px-2 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Sim</button>
+                    <button onClick={() => setConfirmDelete(null)}
+                      className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Não</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmDelete(m.id)} title="Remover"
+                    className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                  </button>
+                )}
               </div>
-              {confirmDelete === m.id ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-red-600">Confirmar?</span>
-                  <button onClick={() => remove(m.id)}
-                    className="px-2 py-1 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Sim</button>
-                  <button onClick={() => setConfirmDelete(null)}
-                    className="px-2 py-1 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Não</button>
-                </div>
-              ) : (
-                <button onClick={() => setConfirmDelete(m.id)} title="Remover"
-                  className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                  </svg>
-                </button>
+
+              {/* Inline cutoff panel */}
+              {isCredit && isOpen && (
+                <CutoffPanel method={m} allCutoffs={allCutoffs} onChanged={load} />
               )}
             </div>
           );
@@ -119,7 +239,7 @@ function PaymentMethodsSection() {
         {methods.length === 0 && <p className="text-xs text-gray-400">Nenhum método cadastrado</p>}
       </div>
 
-      {/* Adicionar */}
+      {/* Add method form */}
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end pt-3 border-t border-gray-100">
         <div className="flex-1 min-w-[140px]">
           <label className={labelCls}>Nome</label>
@@ -197,6 +317,8 @@ function CategoriesSection() {
     return acc;
   }, {});
 
+  const sortedCats = [...cats].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
   return (
     <SectionCard
       title="Categorias e subcategorias"
@@ -204,8 +326,8 @@ function CategoriesSection() {
 
       {/* Lista de categorias */}
       <div className="space-y-1">
-        {cats.map((c) => {
-          const subs = subsByCategory[c.id] || [];
+        {sortedCats.map((c) => {
+          const subs   = subsByCategory[c.id] || [];
           const isOpen = expandedCat === c.id;
           return (
             <div key={c.id} className="border border-gray-100 rounded-lg overflow-hidden">
@@ -219,13 +341,11 @@ function CategoriesSection() {
                       {subs.length}
                     </span>
                   )}
-                  {subs.length > 0 && (
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                      stroke="#9ca3af" strokeWidth="2"
-                      className={`ml-1 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-                      <polyline points="6 9 12 15 18 9"/>
-                    </svg>
-                  )}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="#9ca3af" strokeWidth="2"
+                    className={`ml-1 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
                 </button>
                 <button onClick={() => removeCat(c.id)} title="Remover categoria"
                   className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors ml-2">
@@ -251,6 +371,18 @@ function CategoriesSection() {
                     </div>
                   ))}
                   {subs.length === 0 && <p className="text-xs text-gray-400 py-1">Nenhuma subcategoria</p>}
+                  {/* Add subcategory inline */}
+                  <div className="flex gap-2 items-center pt-2 border-t border-gray-50">
+                    <input type="text" value={subCatId === String(c.id) ? subName : ''}
+                      onChange={(e) => { setSubCatId(String(c.id)); setSubName(e.target.value); }}
+                      onKeyDown={(e) => e.key === 'Enter' && addSub()}
+                      placeholder="Nova subcategoria..." className={`${inputCls} flex-1 text-xs py-1.5`} />
+                    <button onClick={() => { setSubCatId(String(c.id)); addSub(); }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-navy hover:bg-navy-light text-white transition-colors whitespace-nowrap">
+                      Adicionar
+                    </button>
+                  </div>
+                  {subCatId === String(c.id) && subErr && <ErrorBanner msg={subErr} />}
                 </div>
               )}
             </div>
@@ -259,7 +391,7 @@ function CategoriesSection() {
         {cats.length === 0 && <p className="text-xs text-gray-400">Nenhuma categoria cadastrada</p>}
       </div>
 
-      {/* Adicionar categoria */}
+      {/* Add category */}
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center pt-3 border-t border-gray-100">
         <input type="text" value={catName} onChange={(e) => setCatName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && addCat()}
@@ -267,199 +399,6 @@ function CategoriesSection() {
         <AddBtn onClick={addCat}>Adicionar categoria</AddBtn>
       </div>
       <ErrorBanner msg={catErr} />
-
-      {/* Adicionar subcategoria */}
-      <div className="pt-3 border-t border-gray-100 space-y-2">
-        <div className="text-xs font-medium text-gray-500">Adicionar subcategoria</div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <select value={subCatId} onChange={(e) => setSubCatId(e.target.value)}
-            className={inputCls}>
-            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <input type="text" value={subName} onChange={(e) => setSubName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addSub()}
-            placeholder="Nome da subcategoria..." className={`${inputCls} flex-1 min-w-[160px]`} />
-          <AddBtn onClick={addSub}>Adicionar</AddBtn>
-        </div>
-        <ErrorBanner msg={subErr} />
-      </div>
-    </SectionCard>
-  );
-}
-
-// ─── Datas de corte ───────────────────────────────────────────────────────────
-function CutoffDatesSection() {
-  const [cardMethods, setCardMethods] = useState([]);
-  const [allCutoffs, setAllCutoffs]   = useState([]);
-  // Form para adicionar / editar
-  const [selectedId, setSelectedId]  = useState('');
-  const [year, setYear]               = useState(new Date().getFullYear());
-  const [month, setMonth]             = useState(new Date().getMonth() + 1);
-  const [day, setDay]                 = useState(25);
-  const [err, setErr]                 = useState('');
-  const [editingId, setEditingId]     = useState(null); // id da linha em edição
-
-  const loadCards = useCallback(() => {
-    getPaymentMethods().then((r) => {
-      const cards = r.data.filter((m) => m.is_card);
-      setCardMethods(cards);
-      if (cards.length > 0 && !selectedId) setSelectedId(String(cards[0].id));
-    });
-  }, [selectedId]);
-
-  const loadCutoffs = useCallback(() => {
-    getAllCutoffDates().then((r) => setAllCutoffs(r.data));
-  }, []);
-
-  useEffect(() => { loadCards(); loadCutoffs(); }, []);
-
-  const save = async () => {
-    setErr('');
-    if (!selectedId) return setErr('Selecione um cartão');
-    try {
-      await saveCutoffDate({ payment_method_id: selectedId, year, month, cutoff_day: day });
-      loadCutoffs();
-      setEditingId(null);
-    } catch (e) { setErr(e.response?.data?.error || 'Erro ao salvar'); }
-  };
-
-  const remove = async (id) => {
-    setErr('');
-    try { await deleteCutoffDate(id); loadCutoffs(); }
-    catch (e) { setErr(e.response?.data?.error || 'Erro ao remover'); }
-  };
-
-  const startEdit = (c) => {
-    setSelectedId(String(c.payment_method_id));
-    setYear(c.year);
-    setMonth(c.month);
-    setDay(c.cutoff_day);
-    setEditingId(c.id);
-    // Scroll suave ao formulário
-    document.getElementById('cutoff-form')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setErr('');
-  };
-
-  const years = [new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1];
-
-  // Agrupar datas de corte por cartão
-  const cutoffsByCard = allCutoffs.reduce((acc, c) => {
-    const key = c.payment_method_name;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(c);
-    return acc;
-  }, {});
-
-  return (
-    <SectionCard
-      title="Datas de corte dos cartões"
-      description="Define o dia de corte por cartão e mês. Compras até o dia de corte vão para a fatura do mesmo mês; compras após o corte vão para o mês seguinte. Padrão: dia 25.">
-
-      {cardMethods.length === 0 ? (
-        <p className="text-xs text-gray-400">Nenhum cartão cadastrado. Adicione um método do tipo crédito em "Cartões e métodos de pagamento".</p>
-      ) : (
-        <>
-          {/* Lista de todas as datas de corte, agrupadas por cartão */}
-          {Object.keys(cutoffsByCard).length > 0 ? (
-            <div className="space-y-4">
-              {Object.entries(cutoffsByCard).map(([cardName, cutoffs]) => (
-                <div key={cardName}>
-                  <div className="text-xs font-semibold text-navy mb-2">{cardName}</div>
-                  <div className="space-y-1.5">
-                    {cutoffs.map((c) => {
-                      const cutMonth = `${MONTH_NAMES[c.month - 1]} ${c.year}`;
-                      const nextM    = c.month === 12 ? `Jan ${c.year + 1}` : `${MONTH_NAMES[c.month]} ${c.year}`;
-                      const isEditing = editingId === c.id;
-                      return (
-                        <div key={c.id}
-                          className={`border rounded-lg p-3 transition-colors ${isEditing ? 'border-navy/30 bg-blue-50/30' : 'border-gray-100'}`}>
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm text-navy">{cutMonth}</span>
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => isEditing ? cancelEdit() : startEdit(c)}
-                                title={isEditing ? 'Cancelar edição' : 'Editar'}
-                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
-                                  isEditing
-                                    ? 'text-blue-600 bg-blue-100'
-                                    : 'text-gray-300 hover:text-blue-500 hover:bg-blue-50'
-                                }`}>
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                                </svg>
-                              </button>
-                              <button onClick={() => remove(c.id)} title="Excluir"
-                                className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                  <path d="M18 6L6 18M6 6l12 12"/>
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">Corte: dia {c.cutoff_day}</div>
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full">Até o corte: Fatura de {cutMonth}</span>
-                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">Após o corte: Fatura de {nextM}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400">Nenhuma data configurada. Será usado o dia 25 como padrão.</p>
-          )}
-
-          {/* Formulário adicionar / editar */}
-          <div id="cutoff-form" className="pt-4 border-t border-gray-100 space-y-3">
-            <div className="text-xs font-medium text-gray-500">
-              {editingId ? '✏️ Editar data de corte' : 'Adicionar data de corte'}
-            </div>
-            <div className="flex flex-wrap gap-3 items-end">
-              <div>
-                <label className={labelCls}>Cartão</label>
-                <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)} className={inputCls}>
-                  {cardMethods.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Ano</label>
-                <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={inputCls}>
-                  {years.map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Mês</label>
-                <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={inputCls}>
-                  {MONTH_NAMES.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Dia de corte</label>
-                <input type="number" min="1" max="31" value={day}
-                  onChange={(e) => setDay(Number(e.target.value))}
-                  className={`${inputCls} w-20`} />
-              </div>
-              <div className="flex gap-2">
-                <AddBtn onClick={save}>{editingId ? 'Atualizar' : 'Salvar'}</AddBtn>
-                {editingId && (
-                  <button onClick={cancelEdit}
-                    className="px-4 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 transition-colors">
-                    Cancelar
-                  </button>
-                )}
-              </div>
-            </div>
-            <ErrorBanner msg={err} />
-          </div>
-        </>
-      )}
     </SectionCard>
   );
 }
@@ -468,7 +407,6 @@ function CutoffDatesSection() {
 export default function Settings() {
   return (
     <div className="p-4 md:px-5 md:py-4 space-y-4">
-      <CutoffDatesSection />
       <PaymentMethodsSection />
       <CategoriesSection />
     </div>
