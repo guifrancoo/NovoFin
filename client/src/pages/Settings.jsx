@@ -31,7 +31,7 @@ function ErrorBanner({ msg }) {
 function AddBtn({ onClick, children }) {
   return (
     <button onClick={onClick}
-      className="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-medium bg-navy hover:bg-navy-light text-white transition-colors whitespace-nowrap">
+      className="w-full sm:w-auto px-4 py-3 sm:py-2 rounded-lg text-xs font-medium bg-navy hover:bg-navy-light text-white transition-colors whitespace-nowrap">
       {children}
     </button>
   );
@@ -93,16 +93,16 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
               ? `Jan ${c.year + 1}`
               : `${MONTH_NAMES[c.month]} ${c.year}`;
             return (
-              <div key={c.id} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+              <div key={c.id} className="flex items-center justify-between min-h-[44px] border-b border-gray-100 last:border-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-navy">{cutMonth}</span>
                   <span className="text-xs text-gray-400">· dia {c.cutoff_day}</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px]">
-                  <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">até: {cutMonth}</span>
-                  <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">após: {nextM}</span>
+                  <span className="hidden sm:inline bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">até: {cutMonth}</span>
+                  <span className="hidden sm:inline bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">após: {nextM}</span>
                   <button onClick={() => remove(c.id)}
-                    className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors ml-1">
+                    className="w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M18 6L6 18M6 6l12 12"/>
                     </svg>
@@ -115,7 +115,7 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
       )}
 
       {/* Add cutoff form */}
-      <div className="flex flex-wrap gap-2 items-end pt-1 border-t border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-end pt-1 border-t border-gray-100">
         <div>
           <label className={labelCls}>Ano</label>
           <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={inputCls}>
@@ -190,7 +190,7 @@ function PaymentMethodsSection() {
           return (
             <div key={m.id} className="border border-gray-100 rounded-lg overflow-hidden">
               {/* Row */}
-              <div className="flex items-center gap-2 px-3 py-2.5">
+              <div className="flex items-center gap-2 px-3 min-h-[44px]">
                 <TypeBadge type={cardType} />
                 <span className="text-xs font-medium text-navy flex-1">{m.name}</span>
 
@@ -221,7 +221,7 @@ function PaymentMethodsSection() {
                   </div>
                 ) : (
                   <button onClick={() => setConfirmDelete(m.id)} title="Remover"
-                    className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    className="w-11 h-11 sm:w-7 sm:h-7 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M18 6L6 18M6 6l12 12"/>
                     </svg>
@@ -331,7 +331,7 @@ function CategoriesSection() {
           const isOpen = expandedCat === c.id;
           return (
             <div key={c.id} className="border border-gray-100 rounded-lg overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50/60 hover:bg-gray-50 transition-colors">
+              <div className="flex items-center justify-between px-3 min-h-[44px] bg-gray-50/60 hover:bg-gray-50 transition-colors">
                 <button
                   className="flex items-center gap-2 flex-1 text-left text-xs font-medium text-navy"
                   onClick={() => setExpandedCat(isOpen ? null : c.id)}>
@@ -348,7 +348,7 @@ function CategoriesSection() {
                   </svg>
                 </button>
                 <button onClick={() => removeCat(c.id)} title="Remover categoria"
-                  className="w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors ml-2">
+                  className="w-11 h-11 sm:w-7 sm:h-7 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors ml-2">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M18 6L6 18M6 6l12 12"/>
                   </svg>
@@ -357,13 +357,13 @@ function CategoriesSection() {
               {isOpen && (
                 <div className="px-3 py-2 bg-white space-y-1 border-t border-gray-100">
                   {subs.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                    <div key={s.id} className="flex items-center justify-between min-h-[44px] border-b border-gray-50 last:border-0">
                       <div className="flex items-center gap-2">
                         <span className="w-1 h-1 rounded-full bg-gray-300" />
                         <span className="text-xs text-gray-600">{s.name}</span>
                       </div>
                       <button onClick={() => removeSub(s.id)}
-                        className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
+                        className="w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
                         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M18 6L6 18M6 6l12 12"/>
                         </svg>
@@ -372,13 +372,13 @@ function CategoriesSection() {
                   ))}
                   {subs.length === 0 && <p className="text-xs text-gray-400 py-1">Nenhuma subcategoria</p>}
                   {/* Add subcategory inline */}
-                  <div className="flex gap-2 items-center pt-2 border-t border-gray-50">
+                  <div className="flex gap-2 items-center pt-2 border-t border-gray-50 min-h-[44px]">
                     <input type="text" value={subCatId === String(c.id) ? subName : ''}
                       onChange={(e) => { setSubCatId(String(c.id)); setSubName(e.target.value); }}
                       onKeyDown={(e) => e.key === 'Enter' && addSub()}
-                      placeholder="Nova subcategoria..." className={`${inputCls} flex-1 text-xs py-1.5`} />
+                      placeholder="Nova subcategoria..." className={`${inputCls} flex-1 text-xs`} />
                     <button onClick={() => { setSubCatId(String(c.id)); addSub(); }}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium bg-navy hover:bg-navy-light text-white transition-colors whitespace-nowrap">
+                      className="px-3 py-3 sm:py-2 rounded-lg text-xs font-medium bg-navy hover:bg-navy-light text-white transition-colors whitespace-nowrap min-h-[44px] sm:min-h-0">
                       Adicionar
                     </button>
                   </div>
