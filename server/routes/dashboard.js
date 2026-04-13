@@ -66,6 +66,18 @@ router.get('/', (req, res) => {
     ORDER BY total ASC
   `).all(startDate, endDate, uid, ...uf.params);
 
+  const bySubcategory = db.prepare(`
+    SELECT category, subcategory,
+           ROUND(COALESCE(SUM(installment_amount), 0), 2) AS total
+    FROM expenses
+    WHERE purchase_date BETWEEN ? AND ?
+      AND subcategory IS NOT NULL AND subcategory != ''
+      AND category NOT IN ${CE}
+      ${uf.sql}
+    GROUP BY category, subcategory
+    ORDER BY category, total ASC
+  `).all(startDate, endDate, uid, ...uf.params);
+
   const recent = db.prepare(`
     SELECT * FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
@@ -114,6 +126,7 @@ router.get('/', (req, res) => {
     net_accumulated: accRow.net_accumulated,
     by_payment_method: byMethod,
     by_category:       byCategory,
+    by_subcategory:    bySubcategory,
     recent_expenses:   recent,
     monthly_evolution: evolution,
   });

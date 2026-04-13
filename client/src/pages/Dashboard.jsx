@@ -408,6 +408,7 @@ export default function Dashboard() {
   const [catFilter, setCatFilter] = useState('');
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteTarget, setDeleteTarget]     = useState(null);
+  const [expandedCats, setExpandedCats]     = useState(new Set());
   const [minMonth, setMinMonth]   = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const maxMonth = currentYM();
@@ -474,6 +475,18 @@ export default function Dashboard() {
   const maxCatTotal = data.by_category?.length > 0
     ? Math.max(...data.by_category.map((r) => Math.abs(r.total)), 1)
     : 1;
+
+  const subMap = {};
+  (data.by_subcategory || []).forEach((r) => {
+    if (!subMap[r.category]) subMap[r.category] = [];
+    subMap[r.category].push(r);
+  });
+
+  const toggleCat = (cat) => setExpandedCats((prev) => {
+    const next = new Set(prev);
+    next.has(cat) ? next.delete(cat) : next.add(cat);
+    return next;
+  });
 
   return (
     <>
@@ -694,24 +707,50 @@ export default function Dashboard() {
                       const pct = data.expense > 0 ? Math.abs(row.total) / data.expense * 100 : 0;
                       const barW = maxCatTotal > 0 ? Math.abs(row.total) / maxCatTotal * 100 : 0;
                       const color = CAT_COLORS[i % CAT_COLORS.length];
+                      const subs = subMap[row.category];
+                      const hasSubcats = subs && subs.length > 0;
+                      const isExpanded = expandedCats.has(row.category);
                       return (
-                        <tr key={row.category} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors">
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
-                              <span className="text-sm text-gray-700 truncate" title={row.category}>{row.category}</span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="w-20 h-[4px] bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${barW}%`, background: color }} />
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 text-right text-xs text-gray-500">{pct.toFixed(1)}%</td>
-                          <td className={`px-5 py-3 text-right text-sm font-medium whitespace-nowrap ${row.total < 0 ? 'text-danger' : 'text-success'}`}>
-                            {row.total < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(row.total))}
-                          </td>
-                        </tr>
+                        <React.Fragment key={row.category}>
+                          <tr
+                            className={`border-b border-gray-50 last:border-0 transition-colors ${hasSubcats ? 'cursor-pointer hover:bg-gray-50/80' : 'hover:bg-gray-50/60'}`}
+                            onClick={hasSubcats ? () => toggleCat(row.category) : undefined}
+                          >
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                                <span className="text-sm text-gray-700 truncate" title={row.category}>{row.category}</span>
+                                {hasSubcats && (
+                                  <span className="text-gray-400 text-xs ml-0.5 transition-transform duration-150 select-none" style={{ display: 'inline-block', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▾</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="w-20 h-[4px] bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${barW}%`, background: color }} />
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-right text-xs text-gray-500">{pct.toFixed(1)}%</td>
+                            <td className={`px-5 py-3 text-right text-sm font-medium whitespace-nowrap ${row.total < 0 ? 'text-danger' : 'text-success'}`}>
+                              {row.total < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(row.total))}
+                            </td>
+                          </tr>
+                          {hasSubcats && isExpanded && subs.map((sub) => (
+                            <tr key={`${row.category}/${sub.subcategory}`} className="bg-gray-50/50 border-b border-gray-50 last:border-0">
+                              <td className="pl-10 pr-3 py-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2 h-2 rounded-full shrink-0 opacity-40" style={{ background: color }} />
+                                  <span className="text-xs text-gray-500 truncate">{sub.subcategory}</span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-2" />
+                              <td className="px-3 py-2" />
+                              <td className={`px-5 py-2 text-right text-xs font-medium whitespace-nowrap ${sub.total < 0 ? 'text-danger/70' : 'text-success/70'}`}>
+                                {sub.total < 0 ? '- ' : '+ '}{fmtCurrency(Math.abs(sub.total))}
+                              </td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
