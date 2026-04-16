@@ -634,7 +634,7 @@ export default function Dashboard() {
                       {/* DESCRIÇÃO */}
                       <div className="hidden md:flex flex-1 min-w-0 items-center gap-1.5">
                         {!!e.is_international && <span className="text-xs shrink-0">🌍</span>}
-                        <span className="text-xs font-medium text-navy truncate">{e.location || e.category}</span>
+                        <span className="text-xs font-medium text-navy truncate min-w-0">{e.location || e.description}</span>
                         {!!e.recorrente && (
                           <span className="shrink-0"><RecorrenteBadge expense={e} onUpdated={handleRecorrenteUpdated} /></span>
                         )}
