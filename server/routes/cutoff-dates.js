@@ -60,6 +60,47 @@ router.post('/', (req, res) => {
   res.status(201).json(row);
 });
 
+// PATCH /api/cutoff-dates/:id  { year, month, day }
+router.patch('/:id', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { year, month, day } = req.body;
+
+  if (!year || !month || !day) {
+    return res.status(400).json({ error: 'year, month and day are required' });
+  }
+
+  const y = parseInt(year, 10);
+  const m = parseInt(month, 10);
+  const d = parseInt(day, 10);
+
+  if (d < 1 || d > 31) return res.status(400).json({ error: 'day must be between 1 and 31' });
+  if (m < 1 || m > 12) return res.status(400).json({ error: 'month must be between 1 and 12' });
+
+  const existing = db.prepare(`
+    SELECT cd.*, pm.user_id AS pm_user_id
+    FROM cutoff_dates cd
+    JOIN payment_methods pm ON pm.id = cd.payment_method_id
+    WHERE cd.id = ?
+  `).get(id);
+
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (existing.pm_user_id !== null && existing.pm_user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+
+  db.prepare('UPDATE cutoff_dates SET year = ?, month = ?, cutoff_day = ? WHERE id = ?')
+    .run(y, m, d, id);
+
+  const row = db.prepare(`
+    SELECT cd.*, pm.name AS payment_method_name
+    FROM cutoff_dates cd
+    JOIN payment_methods pm ON pm.id = cd.payment_method_id
+    WHERE cd.id = ?
+  `).get(id);
+
+  res.json({ ok: true, cutoffDate: row });
+});
+
 // DELETE /api/cutoff-dates/:id
 router.delete('/:id', (req, res) => {
   const info = db.prepare('DELETE FROM cutoff_dates WHERE id = ?').run(req.params.id);

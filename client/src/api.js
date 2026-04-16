@@ -90,6 +90,7 @@ export const getCutoffDates    = (pmId) => api.get('/cutoff-dates', { params: { 
 export const getAllCutoffDates = ()     => api.get('/cutoff-dates');
 export const saveCutoffDate    = (data) => api.post('/cutoff-dates', data);
 export const deleteCutoffDate  = (id)   => api.delete(`/cutoff-dates/${id}`);
+export const updateCutoffDate  = (id, data) => api.patch(`/cutoff-dates/${id}`, data);
 
 // Formatters
 export const fmtCurrency = (v) =>

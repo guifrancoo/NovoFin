@@ -3,7 +3,7 @@ import {
   getPaymentMethods, createPaymentMethod, deletePaymentMethod,
   getCategories, createCategory, deleteCategory,
   getAllSubcategories, createSubcategory, deleteSubcategory,
-  getAllCutoffDates, saveCutoffDate, deleteCutoffDate,
+  getAllCutoffDates, saveCutoffDate, deleteCutoffDate, updateCutoffDate,
   MONTH_NAMES,
 } from '../api';
 
@@ -54,17 +54,20 @@ function TypeBadge({ type }) {
 
 // ─── Inline cutoff panel (per credit card) ────────────────────────────────────
 function CutoffPanel({ method, allCutoffs, onChanged }) {
-  const [year, setYear]   = useState(new Date().getFullYear());
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const now = new Date();
+  const [year, setYear]   = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
   const [day, setDay]     = useState(25);
   const [err, setErr]     = useState('');
 
+  const [editingId, setEditingId]   = useState(null);
+  const [editYear, setEditYear]     = useState(now.getFullYear());
+  const [editMonth, setEditMonth]   = useState(1);
+  const [editDay, setEditDay]       = useState(25);
+
   const myCutoffs = allCutoffs.filter((c) => c.payment_method_id === method.id);
-  const years = [
-    new Date().getFullYear() - 1,
-    new Date().getFullYear(),
-    new Date().getFullYear() + 1,
-  ];
+  const addYears = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
+  const editYears = [-2, -1, 0, 1, 2].map((d) => now.getFullYear() + d);
 
   const save = async () => {
     setErr('');
@@ -80,6 +83,23 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
     catch (e) { setErr(e.response?.data?.error || 'Erro ao remover'); }
   };
 
+  const startEdit = (c) => {
+    setEditingId(c.id);
+    setEditYear(c.year);
+    setEditMonth(c.month);
+    setEditDay(c.cutoff_day);
+    setErr('');
+  };
+
+  const saveEdit = async (id) => {
+    setErr('');
+    try {
+      await updateCutoffDate(id, { year: editYear, month: editMonth, day: editDay });
+      setEditingId(null);
+      onChanged();
+    } catch (e) { setErr(e.response?.data?.error || 'Erro ao salvar'); }
+  };
+
   return (
     <div className="border-t border-gray-100 bg-gray-50/40 px-4 py-3 space-y-3">
       {/* Existing cutoffs */}
@@ -92,6 +112,31 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
             const nextM    = c.month === 12
               ? `Jan ${c.year + 1}`
               : `${MONTH_NAMES[c.month]} ${c.year}`;
+
+            if (editingId === c.id) {
+              return (
+                <div key={c.id} className="flex flex-wrap items-center gap-2 min-h-[44px] py-1.5 border-b border-gray-100 last:border-0">
+                  <select value={editYear} onChange={(e) => setEditYear(Number(e.target.value))} className={inputCls}>
+                    {editYears.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                  <select value={editMonth} onChange={(e) => setEditMonth(Number(e.target.value))} className={inputCls}>
+                    {MONTH_NAMES.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
+                  </select>
+                  <input type="number" min="1" max="31" value={editDay}
+                    onChange={(e) => setEditDay(Number(e.target.value))}
+                    className={`${inputCls} w-20`} />
+                  <button onClick={() => saveEdit(c.id)}
+                    className="px-3 py-1.5 text-xs font-medium bg-navy text-white rounded-lg hover:bg-navy-light transition-colors">
+                    Salvar
+                  </button>
+                  <button onClick={() => setEditingId(null)}
+                    className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancelar
+                  </button>
+                </div>
+              );
+            }
+
             return (
               <div key={c.id} className="flex items-center justify-between min-h-[44px] border-b border-gray-100 last:border-0">
                 <div className="flex items-center gap-2">
@@ -101,7 +146,14 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
                 <div className="flex items-center gap-1.5 text-[10px]">
                   <span className="hidden sm:inline bg-green-50 text-green-700 px-1.5 py-0.5 rounded-full">até: {cutMonth}</span>
                   <span className="hidden sm:inline bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full">após: {nextM}</span>
-                  <button onClick={() => remove(c.id)}
+                  <button onClick={() => startEdit(c)} title="Editar"
+                    className="w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-300 hover:text-navy hover:bg-navy/5 transition-colors">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                  <button onClick={() => remove(c.id)} title="Remover"
                     className="w-11 h-11 sm:w-6 sm:h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors">
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M18 6L6 18M6 6l12 12"/>
@@ -119,7 +171,7 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
         <div>
           <label className={labelCls}>Ano</label>
           <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={inputCls}>
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+            {addYears.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
         <div>
