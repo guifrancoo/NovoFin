@@ -132,10 +132,10 @@ function RecorrenteBadge({ expense, onUpdated }) {
   return (
     <button
       onClick={e => { e.stopPropagation(); setConfirming(true); }}
-      className="text-[10px] bg-blue-50 text-blue-500 hover:bg-blue-100 px-2 py-0.5 rounded-full transition-colors"
+      className="text-sm leading-none hover:opacity-70 transition-opacity"
       title="Clique para remover recorrência deste lançamento"
     >
-      🔁 recorrente
+      🔁
     </button>
   );
 }
@@ -588,8 +588,8 @@ export default function Dashboard() {
                   <div className="hidden md:flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
                     <div className="w-7 shrink-0" />
                     <div className="w-[100px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Data</div>
-                    <div className="flex-1 min-w-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Descrição</div>
                     <div className="w-[140px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Categoria</div>
+                    <div className="flex-1 min-w-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Descrição</div>
                     <div className="w-[100px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Método</div>
                     <div className="w-[80px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-center">Parcelas</div>
                     <div className="w-[110px] shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider text-right">Valor</div>
@@ -631,6 +631,10 @@ export default function Dashboard() {
                       <div className="hidden md:block w-[100px] shrink-0 text-xs text-gray-400 tabular-nums">
                         {fmtDate(e.purchase_date)}
                       </div>
+                      {/* CATEGORIA */}
+                      <div className="hidden md:block w-[140px] shrink-0 text-xs text-gray-500 truncate" title={e.category}>
+                        {e.category}{e.subcategory ? ` › ${e.subcategory}` : ''}
+                      </div>
                       {/* DESCRIÇÃO */}
                       <div className="hidden md:flex flex-1 min-w-0 items-center gap-1.5">
                         {!!e.is_international && <span className="text-xs shrink-0">🌍</span>}
@@ -638,10 +642,6 @@ export default function Dashboard() {
                         {!!e.recorrente && (
                           <span className="shrink-0"><RecorrenteBadge expense={e} onUpdated={handleRecorrenteUpdated} /></span>
                         )}
-                      </div>
-                      {/* CATEGORIA */}
-                      <div className="hidden md:block w-[140px] shrink-0 text-xs text-gray-500 truncate" title={e.category}>
-                        {e.category}{e.subcategory ? ` › ${e.subcategory}` : ''}
                       </div>
                       {/* MÉTODO */}
                       <div className="hidden md:block w-[100px] shrink-0 text-xs text-gray-500 truncate">
