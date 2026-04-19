@@ -335,6 +335,11 @@ export default function Invoices() {
                   .toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                 const isOpen = expanded[key];
 
+                const sortDesc = (a, b) => b.purchase_date.localeCompare(a.purchase_date);
+                const thisMonthRows  = info.expenses.filter((e) =>  e.purchase_date.startsWith(month)).sort(sortDesc);
+                const otherMonthRows = info.expenses.filter((e) => !e.purchase_date.startsWith(month)).sort(sortDesc);
+                const hasBoth = thisMonthRows.length > 0 && otherMonthRows.length > 0;
+
                 const checkedCount = info.expenses.filter((e) => checkedMap[e.id] ?? !!e.is_checked).length;
                 const totalCount   = info.expenses.length;
 
@@ -375,29 +380,40 @@ export default function Invoices() {
                       <div className="border-t border-gray-50 overflow-x-auto">
                         <table className="w-full table-fixed">
                           <colgroup>
-                            <col style={{ width: '6%' }} />
-                            <col style={{ width: '6%' }} />
-                            <col style={{ width: '20%' }} />
-                            <col style={{ width: '28%' }} />
-                            <col className="hidden md:table-column" style={{ width: '0%' }} />
+                            <col style={{ width: '5%' }} />
+                            <col style={{ width: '11%' }} />
+                            <col style={{ width: '26%' }} />
+                            <col style={{ width: '31%' }} />
+                            <col style={{ width: '10%' }} />
                             <col style={{ width: '12%' }} />
-                            <col style={{ width: '18%' }} />
-                            <col className="hidden md:table-column" style={{ width: '0%' }} />
+                            <col className="hidden md:table-column" style={{ width: '5%' }} />
                           </colgroup>
                           <thead>
                             <tr className="bg-gray-50/80">
                               <th className="px-3 py-2.5 w-8"></th>
-                              <th className="px-2 py-2.5 w-8"></th>
                               <th className="text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide whitespace-nowrap">Vencimento</th>
+                              <th className="text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide">Categoria</th>
                               <th className="text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide">Local</th>
-                              <th className="hidden md:table-cell text-left text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide">Categoria</th>
                               <th className="text-center text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide whitespace-nowrap">Parcela</th>
                               <th className="text-right text-xs font-medium text-gray-400 px-3 py-2.5 uppercase tracking-wide">Valor</th>
                               <th className="hidden md:table-cell px-3 py-2.5 w-10"></th>
                             </tr>
                           </thead>
                           <tbody>
-                            {info.expenses.map((e) => {
+                            {[...thisMonthRows, ...(hasBoth ? [null] : []), ...otherMonthRows].map((e, idx) => {
+                              if (e === null) {
+                                return (
+                                  <tr key="__separator__">
+                                    <td colSpan={7} className="px-3 py-1.5">
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex-1 h-px bg-gray-200" />
+                                        <span className="text-xs text-gray-400 whitespace-nowrap">Parcelas de outros meses</span>
+                                        <div className="flex-1 h-px bg-gray-200" />
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              }
                               const isChecked = checkedMap[e.id] ?? !!e.is_checked;
                               return (
                                 <tr key={e.id}
@@ -423,22 +439,26 @@ export default function Invoices() {
                                       </svg>
                                     </button>
                                   </td>
-                                  {/* Ícone da categoria */}
-                                  <td className="px-1 py-3 text-center">
-                                    <CatIcon category={e.category} />
-                                  </td>
+                                  {/* Vencimento */}
                                   <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDate(e.due_date)}</td>
+                                  {/* Categoria com ícone */}
+                                  <td className="px-3 py-3">
+                                    <div className="flex items-center gap-2">
+                                      <CatIcon category={e.category} />
+                                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full truncate">
+                                        {e.category}{e.subcategory ? ` › ${e.subcategory}` : ''}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  {/* Local com ícones */}
                                   <td className="px-3 py-3">
                                     <div className="flex items-center gap-1.5">
-                                      {!!e.is_international && <span className="text-xs">🌍</span>}
+                                      {!!e.recorrente && <span className="text-xs" title="Recorrente">🔁</span>}
+                                      {!!e.is_international && <span className="text-xs" title="Internacional">🌍</span>}
                                       <span className="text-xs text-navy font-medium truncate">{e.location || '—'}</span>
                                     </div>
                                   </td>
-                                  <td className="hidden md:table-cell px-3 py-3">
-                                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                                      {e.category}{e.subcategory ? ` › ${e.subcategory}` : ''}
-                                    </span>
-                                  </td>
+                                  {/* Parcela */}
                                   <td className="px-3 py-3 text-center">
                                     {e.installments > 1 ? (
                                       <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full font-medium">
@@ -448,9 +468,11 @@ export default function Invoices() {
                                       <span className="text-xs text-gray-300">—</span>
                                     )}
                                   </td>
+                                  {/* Valor */}
                                   <td className="px-3 py-3 text-right text-xs font-semibold text-navy whitespace-nowrap">
                                     {fmtCurrency(Math.abs(e.installment_amount))}
                                   </td>
+                                  {/* Editar */}
                                   <td className="hidden md:table-cell px-3 py-3">
                                     <button onClick={() => setEditingExpense(e)}
                                       className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-blue-600 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-all">
@@ -475,8 +497,7 @@ export default function Invoices() {
                                   <span className="ml-2 text-green-600">• {checkedCount}/{totalCount} conferido{checkedCount !== 1 ? 's' : ''}</span>
                                 )}
                               </td>
-                              <td className="hidden md:table-cell" />
-                              <td className="hidden md:table-cell" />
+                              <td className="px-3 py-2.5" />
                               <td className="px-3 py-2.5 text-right text-xs font-semibold text-navy">{fmtCurrency(info.total)}</td>
                               <td className="hidden md:table-cell" />
                             </tr>
