@@ -277,13 +277,17 @@ router.patch('/:id', (req, res) => {
   const isSingle = (existing.installments || 1) === 1;
   const newTotalAmount = isSingle ? merged.installment_amount : existing.total_amount;
 
+  const firstDueDate = computeFirstDueDate(merged.purchase_date, merged.payment_method);
+  const installmentOffset = (existing.installment_number || 1) - 1;
+  const newDueDate = addMonths(firstDueDate, installmentOffset);
+
   db.prepare(`
     UPDATE expenses
-    SET purchase_date = ?, category = ?, subcategory = ?, location = ?,
+    SET purchase_date = ?, due_date = ?, category = ?, subcategory = ?, location = ?,
         payment_method = ?, description = ?, installment_amount = ?, total_amount = ?, is_international = ?, recorrente = ?
     WHERE id = ?
   `).run(
-    merged.purchase_date, merged.category, merged.subcategory, merged.location,
+    merged.purchase_date, newDueDate, merged.category, merged.subcategory, merged.location,
     merged.payment_method, merged.description, merged.installment_amount, newTotalAmount, merged.is_international,
     merged.recorrente, req.params.id
   );
