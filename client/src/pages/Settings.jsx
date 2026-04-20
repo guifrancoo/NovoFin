@@ -84,7 +84,6 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
   };
 
   const startEdit = (c) => {
-    console.log('startEdit called', c.id, c.year, c.month, c.cutoff_day);
     setEditingId(c.id);
     setEditYear(Number(c.year));
     setEditMonth(Number(c.month));
@@ -93,15 +92,12 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
   };
 
   const saveEdit = async (id) => {
-    console.log('saveEdit called', id, editYear, editMonth, editDay);
     setErr('');
     try {
-      const result = await updateCutoffDate(id, { year: editYear, month: editMonth, day: editDay });
-      console.log('response:', result);
+      await updateCutoffDate(id, { year: editYear, month: editMonth, day: editDay });
       setEditingId(null);
       onChanged();
     } catch (e) {
-      console.error('saveEdit error:', e);
       setErr(e.response?.data?.error || 'Erro ao salvar');
     }
   };

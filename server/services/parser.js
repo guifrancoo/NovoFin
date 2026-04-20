@@ -103,7 +103,6 @@ function detectType(text, category) {
 }
 
 function parseInstallments(text) {
-  console.log('[parser] parseInstallments input:', JSON.stringify(text));
   const patterns = [
     /\bem\s+(\d+)\s+vezes\b/i,
     /\bparcelado\s+em\s+(\d+)\b/i,
@@ -122,14 +121,11 @@ function parseInstallments(text) {
 
 function getAllCreditCards(userId) {
   try {
-    console.log('[parser] getAllCreditCards userId:', userId);
     const cards = db.prepare(
       'SELECT id, name FROM payment_methods WHERE is_card = 1 AND (user_id = ? OR user_id IS NULL) ORDER BY id ASC'
     ).all(userId ?? null);
-    console.log('[parser] cards found:', JSON.stringify(cards));
     return cards;
   } catch (err) {
-    console.log('[parser] getAllCreditCards error:', err.message);
     return [];
   }
 }
@@ -271,7 +267,6 @@ function parse(text, userId = null) {
     paymentMethod = null;
   }
 
-  console.log('[parser] installments:', installments, '| paymentMethod:', paymentMethod, '| needsCardSelection:', needsCardSelection);
   return { amount, location, category, date, type, installments, paymentMethod, needsCardSelection, availableCards, isInternational, explicitMethod };
 }
 

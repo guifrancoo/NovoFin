@@ -25,7 +25,6 @@ async function uploadAudio(buffer) {
     body: buffer,
   });
   if (!res.ok) {
-    console.log('[assemblyai] upload response:', res.status, await res.text());
     throw new Error(`AssemblyAI upload failed: ${res.status}`);
   }
   const { upload_url } = await res.json();
@@ -47,7 +46,6 @@ async function submitTranscript(audioUrl) {
     }),
   });
   const data = await res.json();
-  console.log('[assemblyai] submit response:', res.status, JSON.stringify(data));
   if (!res.ok) throw new Error(`AssemblyAI submit failed: ${res.status}`);
   return data.id;
 }
