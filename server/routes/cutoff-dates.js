@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { db } = require('../database');
-const { computeFirstDueDate } = require('../utils/dates');
+const { addMonths, computeFirstDueDate } = require('../utils/dates');
 
 const router = Router();
 
@@ -99,20 +99,37 @@ router.patch('/:id', (req, res) => {
     WHERE cd.id = ?
   `).get(id);
 
-  // Reprocess due_dates for expenses in this payment method + year/month
+  // Reprocess due_dates by group, anchored on installment_number = 1
   const monthStr = `${row.year}-${String(row.month).padStart(2, '0')}`;
-  const affected = db.prepare(`
-    SELECT id, purchase_date, payment_method FROM expenses
+
+  // Find all distinct group_ids where any installment's purchase_date falls in this month
+  const groups = db.prepare(`
+    SELECT DISTINCT group_id FROM expenses
     WHERE payment_method = ? AND strftime('%Y-%m', purchase_date) = ? AND user_id = ?
   `).all(row.payment_method_name, monthStr, req.user.id);
 
   const updateStmt = db.prepare('UPDATE expenses SET due_date = ? WHERE id = ?');
-  for (const exp of affected) {
-    const newDue = computeFirstDueDate(exp.purchase_date, exp.payment_method);
-    updateStmt.run(newDue, exp.id);
+  let reprocessed = 0;
+
+  for (const { group_id } of groups) {
+    const installments = db.prepare(`
+      SELECT id, purchase_date, payment_method, installment_number
+      FROM expenses WHERE group_id = ? ORDER BY installment_number ASC
+    `).all(group_id);
+
+    if (installments.length === 0) continue;
+
+    const first = installments[0];
+    const firstDueDate = computeFirstDueDate(first.purchase_date, first.payment_method);
+
+    for (const exp of installments) {
+      const newDue = addMonths(firstDueDate, exp.installment_number - 1);
+      updateStmt.run(newDue, exp.id);
+      reprocessed++;
+    }
   }
 
-  res.json({ ok: true, cutoffDate: row, reprocessed: affected.length });
+  res.json({ ok: true, cutoffDate: row, reprocessed });
 });
 
 // DELETE /api/cutoff-dates/:id
