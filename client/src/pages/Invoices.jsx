@@ -253,9 +253,7 @@ export default function Invoices() {
   }
 
   const allYears = [...new Set(
-    Object.values(data).flatMap((mm) =>
-      Object.values(mm).flatMap((info) => info.expenses.map((e) => e.purchase_date.split('-')[0]))
-    )
+    Object.values(data).flatMap((mm) => Object.keys(mm).map((m) => m.split('-')[0]))
   )].sort((a, b) => b - a);
 
   const activeYear = (selectedYear && allYears.includes(selectedYear))
@@ -295,20 +293,12 @@ export default function Invoices() {
 
       {/* Um painel por cartão */}
       {Object.entries(data).map(([method, monthMap]) => {
-        // Re-group by purchase_date month (flatten across all due_date buckets)
-        const allExpenses = Object.values(monthMap).flatMap((info) => info.expenses);
-        const purchaseGroups = {};
-        for (const e of allExpenses) {
-          const pm = e.purchase_date.slice(0, 7);
-          if (!purchaseGroups[pm]) purchaseGroups[pm] = [];
-          purchaseGroups[pm].push(e);
-        }
-        const filteredMonths = Object.entries(purchaseGroups)
+        const filteredMonths = Object.entries(monthMap)
           .filter(([m]) => !activeYear || m.startsWith(activeYear))
           .sort(([a], [b]) => a.localeCompare(b))
-          .map(([m, exps]) => [m, {
-            expenses: exps.sort((a, b) => b.purchase_date.localeCompare(a.purchase_date)),
-            total: exps.reduce((s, e) => s + e.installment_amount, 0),
+          .map(([m, info]) => [m, {
+            ...info,
+            expenses: [...info.expenses].sort((a, b) => b.purchase_date.localeCompare(a.purchase_date)),
           }]);
 
         if (filteredMonths.length === 0) return null;
