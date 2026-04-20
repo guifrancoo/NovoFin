@@ -253,7 +253,9 @@ export default function Invoices() {
   }
 
   const allYears = [...new Set(
-    Object.values(data).flatMap((mm) => Object.keys(mm).map((m) => m.split('-')[0]))
+    Object.values(data).flatMap((mm) =>
+      Object.values(mm).flatMap((info) => info.expenses.map((e) => e.purchase_date.split('-')[0]))
+    )
   )].sort((a, b) => b - a);
 
   const activeYear = (selectedYear && allYears.includes(selectedYear))
@@ -293,9 +295,21 @@ export default function Invoices() {
 
       {/* Um painel por cartão */}
       {Object.entries(data).map(([method, monthMap]) => {
-        const filteredMonths = Object.entries(monthMap)
+        // Re-group by purchase_date month (flatten across all due_date buckets)
+        const allExpenses = Object.values(monthMap).flatMap((info) => info.expenses);
+        const purchaseGroups = {};
+        for (const e of allExpenses) {
+          const pm = e.purchase_date.slice(0, 7);
+          if (!purchaseGroups[pm]) purchaseGroups[pm] = [];
+          purchaseGroups[pm].push(e);
+        }
+        const filteredMonths = Object.entries(purchaseGroups)
           .filter(([m]) => !activeYear || m.startsWith(activeYear))
-          .sort(([a], [b]) => a.localeCompare(b));
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([m, exps]) => [m, {
+            expenses: exps.sort((a, b) => b.purchase_date.localeCompare(a.purchase_date)),
+            total: exps.reduce((s, e) => s + e.installment_amount, 0),
+          }]);
 
         if (filteredMonths.length === 0) return null;
 
@@ -334,11 +348,6 @@ export default function Invoices() {
                 const label = new Date(Number(yr), Number(mo) - 1, 1)
                   .toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
                 const isOpen = expanded[key];
-
-                const sortDesc = (a, b) => b.purchase_date.localeCompare(a.purchase_date);
-                const thisMonthRows  = info.expenses.filter((e) =>  e.purchase_date.startsWith(month)).sort(sortDesc);
-                const otherMonthRows = info.expenses.filter((e) => !e.purchase_date.startsWith(month)).sort(sortDesc);
-                const hasBoth = thisMonthRows.length > 0 && otherMonthRows.length > 0;
 
                 const checkedCount = info.expenses.filter((e) => checkedMap[e.id] ?? !!e.is_checked).length;
                 const totalCount   = info.expenses.length;
@@ -400,20 +409,7 @@ export default function Invoices() {
                             </tr>
                           </thead>
                           <tbody>
-                            {[...thisMonthRows, ...(hasBoth ? [null] : []), ...otherMonthRows].map((e, idx) => {
-                              if (e === null) {
-                                return (
-                                  <tr key="__separator__">
-                                    <td colSpan={7} className="px-3 py-1.5">
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex-1 h-px bg-gray-200" />
-                                        <span className="text-xs text-gray-400 whitespace-nowrap">Parcelas de outros meses</span>
-                                        <div className="flex-1 h-px bg-gray-200" />
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              }
+                            {info.expenses.map((e) => {
                               const isChecked = checkedMap[e.id] ?? !!e.is_checked;
                               return (
                                 <tr key={e.id}
