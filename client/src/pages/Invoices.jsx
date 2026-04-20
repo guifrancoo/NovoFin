@@ -430,7 +430,7 @@ export default function Invoices() {
                                     <div>{fmtDate(e.due_date)}</div>
                                     {e.purchase_date.slice(0, 7) !== e.due_date.slice(0, 7) && (
                                       <div className="text-xs text-gray-400">
-                                        compra: {e.purchase_date.slice(8, 10)}/{e.purchase_date.slice(5, 7)}
+                                        compra: {e.purchase_date.slice(8, 10)}/{e.purchase_date.slice(5, 7)}/{e.purchase_date.slice(0, 4)}
                                       </div>
                                     )}
                                   </td>
