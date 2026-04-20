@@ -8,8 +8,11 @@ const router = Router();
 
 function addMonths(dateStr, n) {
   const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(y, m - 1 + n, d);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const total      = (m - 1) + n;
+  const targetYear = y + Math.floor(total / 12);
+  const targetMon  = (total % 12) + 1;
+  const lastDay    = new Date(targetYear, targetMon, 0).getDate();
+  return `${targetYear}-${String(targetMon).padStart(2, '0')}-${String(Math.min(d, lastDay)).padStart(2, '0')}`;
 }
 
 function computeFirstDueDate(purchaseDateStr, methodName) {
