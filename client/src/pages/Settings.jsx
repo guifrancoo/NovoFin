@@ -122,6 +122,7 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
             if (editingId === c.id) {
               return (
                 <div key={c.id} className="relative z-10 overflow-visible flex flex-wrap items-center gap-2 min-h-[44px] py-1.5 border-b border-gray-100 last:border-0">
+                  <span className="text-sm font-medium text-gray-700 w-full sm:w-auto">Editando: {MONTH_NAMES[c.month - 1]} {c.year}</span>
                   <select value={editYear} onChange={(e) => setEditYear(Number(e.target.value))} className={inputCls}>
                     {editYears.map((y) => <option key={y} value={y}>{y}</option>)}
                   </select>
