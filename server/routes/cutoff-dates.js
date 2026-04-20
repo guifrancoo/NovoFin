@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { db } = require('../database');
+const { computeFirstDueDate } = require('../utils/dates');
 
 const router = Router();
 
@@ -98,7 +99,20 @@ router.patch('/:id', (req, res) => {
     WHERE cd.id = ?
   `).get(id);
 
-  res.json({ ok: true, cutoffDate: row });
+  // Reprocess due_dates for expenses in this payment method + year/month
+  const monthStr = `${row.year}-${String(row.month).padStart(2, '0')}`;
+  const affected = db.prepare(`
+    SELECT id, purchase_date, payment_method FROM expenses
+    WHERE payment_method = ? AND strftime('%Y-%m', purchase_date) = ? AND user_id = ?
+  `).all(row.payment_method_name, monthStr, req.user.id);
+
+  const updateStmt = db.prepare('UPDATE expenses SET due_date = ? WHERE id = ?');
+  for (const exp of affected) {
+    const newDue = computeFirstDueDate(exp.purchase_date, exp.payment_method);
+    updateStmt.run(newDue, exp.id);
+  }
+
+  res.json({ ok: true, cutoffDate: row, reprocessed: affected.length });
 });
 
 // DELETE /api/cutoff-dates/:id
