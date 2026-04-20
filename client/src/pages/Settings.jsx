@@ -84,6 +84,7 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
   };
 
   const startEdit = (c) => {
+    console.log('startEdit called', c.id, c.year, c.month, c.cutoff_day);
     setEditingId(c.id);
     setEditYear(c.year);
     setEditMonth(c.month);
@@ -120,7 +121,7 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
 
             if (editingId === c.id) {
               return (
-                <div key={c.id} className="flex flex-wrap items-center gap-2 min-h-[44px] py-1.5 border-b border-gray-100 last:border-0">
+                <div key={c.id} className="relative z-10 overflow-visible flex flex-wrap items-center gap-2 min-h-[44px] py-1.5 border-b border-gray-100 last:border-0">
                   <select value={editYear} onChange={(e) => setEditYear(Number(e.target.value))} className={inputCls}>
                     {editYears.map((y) => <option key={y} value={y}>{y}</option>)}
                   </select>
