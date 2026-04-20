@@ -86,9 +86,9 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
   const startEdit = (c) => {
     console.log('startEdit called', c.id, c.year, c.month, c.cutoff_day);
     setEditingId(c.id);
-    setEditYear(c.year);
-    setEditMonth(c.month);
-    setEditDay(c.cutoff_day);
+    setEditYear(Number(c.year));
+    setEditMonth(Number(c.month));
+    setEditDay(Number(c.cutoff_day));
     setErr('');
   };
 
@@ -173,7 +173,10 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
       )}
 
       {/* Add cutoff form */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-end pt-1 border-t border-gray-100">
+      <div className="mt-4 pt-3 border-t border-gray-200">
+        <p className="text-sm font-medium text-gray-600 mb-2">Inclusão de nova data de corte</p>
+      </div>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-end pt-1">
         <div>
           <label className={labelCls}>Ano</label>
           <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={inputCls}>
