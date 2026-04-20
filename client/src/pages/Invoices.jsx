@@ -426,7 +426,14 @@ export default function Invoices() {
                                     </button>
                                   </td>
                                   {/* Vencimento */}
-                                  <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">{fmtDate(e.due_date)}</td>
+                                  <td className="px-3 py-3 text-xs text-gray-600 whitespace-nowrap">
+                                    <div>{fmtDate(e.due_date)}</div>
+                                    {e.purchase_date.slice(0, 7) !== e.due_date.slice(0, 7) && (
+                                      <div className="text-xs text-gray-400">
+                                        compra: {e.purchase_date.slice(8, 10)}/{e.purchase_date.slice(5, 7)}
+                                      </div>
+                                    )}
+                                  </td>
                                   {/* Categoria com ícone */}
                                   <td className="px-3 py-3">
                                     <div className="flex items-center gap-2">
