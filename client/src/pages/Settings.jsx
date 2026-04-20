@@ -92,12 +92,17 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
   };
 
   const saveEdit = async (id) => {
+    console.log('saveEdit called', id, editYear, editMonth, editDay);
     setErr('');
     try {
-      await updateCutoffDate(id, { year: editYear, month: editMonth, day: editDay });
+      const result = await updateCutoffDate(id, { year: editYear, month: editMonth, day: editDay });
+      console.log('response:', result);
       setEditingId(null);
       onChanged();
-    } catch (e) { setErr(e.response?.data?.error || 'Erro ao salvar'); }
+    } catch (e) {
+      console.error('saveEdit error:', e);
+      setErr(e.response?.data?.error || 'Erro ao salvar');
+    }
   };
 
   return (
@@ -125,7 +130,7 @@ function CutoffPanel({ method, allCutoffs, onChanged }) {
                   <input type="number" min="1" max="31" value={editDay}
                     onChange={(e) => setEditDay(Number(e.target.value))}
                     className={`${inputCls} w-20`} />
-                  <button onClick={() => saveEdit(c.id)}
+                  <button type="button" onClick={() => saveEdit(c.id)}
                     className="px-3 py-1.5 text-xs font-medium bg-navy text-white rounded-lg hover:bg-navy-light transition-colors">
                     Salvar
                   </button>
