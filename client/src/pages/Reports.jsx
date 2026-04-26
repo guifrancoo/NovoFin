@@ -68,8 +68,8 @@ function MonthTooltip({ active, payload, label }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 shadow-sm text-xs space-y-1">
       <div className="font-medium text-navy mb-1">{label}</div>
-      {expenses && <div style={{ color: '#ef4444' }}>Despesas: {fmtCurrency(expenses.value)}</div>}
-      {income   && <div style={{ color: '#22c55e' }}>Receitas: {fmtCurrency(income.value)}</div>}
+      {expenses && <div style={{ color: '#dc2626' }}>Despesas: {fmtCurrency(expenses.value)}</div>}
+      {income   && <div style={{ color: '#16a34a' }}>Receitas: {fmtCurrency(income.value)}</div>}
     </div>
   );
 }
@@ -277,10 +277,10 @@ export default function Reports() {
               <span className="text-sm font-semibold text-navy">Gastos e Receitas por Mês</span>
               <div className="flex items-center gap-3 text-xs text-gray-500">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#ef4444' }} />Despesas
+                  <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#dc2626' }} />Despesas
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#22c55e' }} />Receitas
+                  <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#16a34a' }} />Receitas
                 </span>
               </div>
             </div>
@@ -294,8 +294,8 @@ export default function Reports() {
                     <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false}
                       tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip content={<MonthTooltip />} />
-                    <Bar dataKey="expenses" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={28} />
-                    <Bar dataKey="income"   fill="#22c55e" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="expenses" fill="#dc2626" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="income"   fill="#16a34a" radius={[3, 3, 0, 0]} maxBarSize={28} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -325,19 +325,19 @@ export default function Reports() {
                         <div className="flex flex-col gap-0.5 mb-1">
                           <div className="flex items-center justify-between">
                             <span className="text-xs text-gray-400">Despesas</span>
-                            <span className="text-sm font-semibold" style={{ color: '#ef4444' }}>{fmtCurrency(r.expenses)}</span>
+                            <span className="text-sm font-semibold" style={{ color: '#dc2626' }}>{fmtCurrency(r.expenses)}</span>
                           </div>
                           {r.income > 0 && (
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-gray-400">Receitas</span>
-                              <span className="text-sm font-semibold" style={{ color: '#22c55e' }}>{fmtCurrency(r.income)}</span>
+                              <span className="text-sm font-semibold" style={{ color: '#16a34a' }}>{fmtCurrency(r.income)}</span>
                             </div>
                           )}
                         </div>
                         <div className="text-xs text-gray-400">{r.count} lançamento{r.count !== 1 ? 's' : ''} · {sharePct}%</div>
                         <div className="mt-3 h-1.5 bg-gray-200 rounded-full overflow-hidden flex">
-                          <div className="h-full" style={{ width: `${expPct}%`, background: '#ef4444' }} />
-                          <div className="h-full" style={{ width: `${incPct}%`, background: '#22c55e' }} />
+                          <div className="h-full" style={{ width: `${expPct}%`, background: '#dc2626' }} />
+                          <div className="h-full" style={{ width: `${incPct}%`, background: '#16a34a' }} />
                         </div>
                       </div>
                     );

@@ -365,7 +365,7 @@ export default function Invoices() {
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className={`text-sm font-semibold ${info.total >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>{fmtCurrency(Math.abs(info.total))}</span>
+                        <span className={`text-sm font-semibold ${info.total >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]'}`}>{fmtCurrency(Math.abs(info.total))}</span>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                           stroke="#9ca3af" strokeWidth="2"
                           className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}>
@@ -462,7 +462,7 @@ export default function Invoices() {
                                     )}
                                   </td>
                                   {/* Valor */}
-                                  <td className={`px-3 py-3 text-right text-xs font-semibold whitespace-nowrap ${e.installment_amount > 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>
+                                  <td className={`px-3 py-3 text-right text-xs font-semibold whitespace-nowrap ${e.installment_amount > 0 ? 'text-[#16a34a]' : 'text-[#dc2626]'}`}>
                                     {fmtCurrency(Math.abs(e.installment_amount))}
                                   </td>
                                   {/* Editar */}
@@ -491,7 +491,7 @@ export default function Invoices() {
                                 )}
                               </td>
                               <td className="px-3 py-2.5" />
-                              <td className={`px-3 py-2.5 text-right text-xs font-semibold ${info.total >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>{fmtCurrency(Math.abs(info.total))}</td>
+                              <td className={`px-3 py-2.5 text-right text-xs font-semibold ${info.total >= 0 ? 'text-[#16a34a]' : 'text-[#dc2626]'}`}>{fmtCurrency(Math.abs(info.total))}</td>
                               <td className="hidden md:table-cell" />
                             </tr>
                           </tfoot>
