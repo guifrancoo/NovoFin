@@ -79,11 +79,11 @@ router.get('/by-month', (req, res) => {
 
   let sql = `
     SELECT strftime('%Y-%m', purchase_date) AS month,
-           ABS(COALESCE(SUM(installment_amount), 0)) AS total,
+           ABS(COALESCE(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END), 0)) AS expenses,
+           COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0) AS income,
            COUNT(*) AS count
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND installment_amount < 0
       AND category NOT IN ${CE}
       ${uf.sql}
   `;
@@ -107,15 +107,15 @@ router.get('/by-payment-method', (req, res) => {
 
   const rows = db.prepare(`
     SELECT payment_method,
-           ABS(COALESCE(SUM(installment_amount), 0)) AS total,
+           ABS(COALESCE(SUM(CASE WHEN installment_amount < 0 THEN installment_amount ELSE 0 END), 0)) AS expenses,
+           COALESCE(SUM(CASE WHEN installment_amount > 0 THEN installment_amount ELSE 0 END), 0) AS income,
            COUNT(*) AS count
     FROM expenses
     WHERE purchase_date BETWEEN ? AND ?
-      AND installment_amount < 0
       AND category NOT IN ${CE}
       ${uf.sql}
     GROUP BY payment_method
-    ORDER BY total DESC
+    ORDER BY expenses DESC
   `).all(startDate, endDate, uid, ...uf.params);
 
   res.json(rows);

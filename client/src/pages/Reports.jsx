@@ -4,7 +4,7 @@ import {
   getDateRange, fmtCurrency,
 } from '../api';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList, Legend,
 } from 'recharts';
 
 const CAT_COLORS = [
@@ -63,10 +63,13 @@ function CustomTooltip({ active, payload, grandTotal }) {
 
 function MonthTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
+  const expenses = payload.find((p) => p.dataKey === 'expenses');
+  const income   = payload.find((p) => p.dataKey === 'income');
   return (
-    <div className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 shadow-sm text-xs">
+    <div className="bg-white border border-gray-100 rounded-xl px-3 py-2.5 shadow-sm text-xs space-y-1">
       <div className="font-medium text-navy mb-1">{label}</div>
-      <div className="text-gray-600">{fmtCurrency(payload[0].value)}</div>
+      {expenses && <div style={{ color: '#ef4444' }}>Despesas: {fmtCurrency(expenses.value)}</div>}
+      {income   && <div style={{ color: '#22c55e' }}>Receitas: {fmtCurrency(income.value)}</div>}
     </div>
   );
 }
@@ -113,7 +116,7 @@ export default function Reports() {
   const chartData     = displayData.map((r) => ({ ...r, totalAbs: Math.abs(r.total) }));
   const toggleCat    = (cat) => setExpanded((p) => ({ ...p, [cat]: !p[cat] }));
   const barChartH    = Math.max(220, displayData.length * 34);
-  const methodTotal  = byMethod.reduce((s, r) => s + r.total, 0);
+  const methodExpTotal = byMethod.reduce((s, r) => s + r.expenses, 0);
 
   return (
     <div className="p-4 md:px-5 md:py-4 space-y-4">
@@ -268,22 +271,31 @@ export default function Reports() {
             </div>
           </div>
 
-          {/* Gastos por mês */}
+          {/* Gastos e Receitas por mês */}
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-100">
-              <span className="text-sm font-semibold text-navy">Gastos por mês</span>
+            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+              <span className="text-sm font-semibold text-navy">Gastos e Receitas por Mês</span>
+              <div className="flex items-center gap-3 text-xs text-gray-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#ef4444' }} />Despesas
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: '#22c55e' }} />Receitas
+                </span>
+              </div>
             </div>
             <div className="px-4 py-4">
               {byMonth.length === 0 ? (
                 <div className="h-36 flex items-center justify-center text-sm text-gray-400">Sem dados</div>
               ) : (
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={byMonth} margin={{ top: 0, right: 8, left: -10, bottom: 0 }} barCategoryGap="30%">
+                  <BarChart data={byMonth} margin={{ top: 0, right: 8, left: -10, bottom: 0 }} barCategoryGap="20%" barGap={2}>
                     <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false}
                       tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip content={<MonthTooltip />} />
-                    <Bar dataKey="total" fill="#185FA5" radius={[3, 3, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey="expenses" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="income"   fill="#22c55e" radius={[3, 3, 0, 0]} maxBarSize={28} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -300,19 +312,32 @@ export default function Reports() {
                 <div className="text-sm text-gray-400">Sem dados</div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {byMethod.map((r, i) => {
-                    const color = CAT_COLORS[i % CAT_COLORS.length];
-                    const pct = methodTotal > 0 ? ((r.total / methodTotal) * 100).toFixed(1) : '0.0';
+                  {byMethod.map((r) => {
+                    const maxExp   = Math.max(...byMethod.map((x) => x.expenses));
+                    const expPct   = maxExp > 0 ? ((r.expenses / maxExp) * 100).toFixed(1) : '0.0';
+                    const incPct   = maxExp > 0 ? ((r.income   / maxExp) * 100).toFixed(1) : '0.0';
+                    const sharePct = methodExpTotal > 0 ? ((r.expenses / methodExpTotal) * 100).toFixed(1) : '0.0';
                     return (
                       <div key={r.payment_method} className="bg-gray-50/60 rounded-xl p-4 border border-gray-100">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                        <div className="mb-3">
                           <span className="text-xs font-medium text-gray-600 truncate">{r.payment_method}</span>
                         </div>
-                        <div className="text-lg font-semibold text-navy mb-1">{fmtCurrency(r.total)}</div>
-                        <div className="text-xs text-gray-400">{r.count} lançamento{r.count !== 1 ? 's' : ''} · {pct}%</div>
-                        <div className="mt-3 h-1 bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                        <div className="flex flex-col gap-0.5 mb-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-400">Despesas</span>
+                            <span className="text-sm font-semibold" style={{ color: '#ef4444' }}>{fmtCurrency(r.expenses)}</span>
+                          </div>
+                          {r.income > 0 && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-400">Receitas</span>
+                              <span className="text-sm font-semibold" style={{ color: '#22c55e' }}>{fmtCurrency(r.income)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400">{r.count} lançamento{r.count !== 1 ? 's' : ''} · {sharePct}%</div>
+                        <div className="mt-3 h-1.5 bg-gray-200 rounded-full overflow-hidden flex">
+                          <div className="h-full" style={{ width: `${expPct}%`, background: '#ef4444' }} />
+                          <div className="h-full" style={{ width: `${incPct}%`, background: '#22c55e' }} />
                         </div>
                       </div>
                     );
