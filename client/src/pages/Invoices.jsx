@@ -4,46 +4,16 @@ import {
   createExpense, updateExpense, updateGroup, deleteGroup,
   checkExpense, fmtCurrency, fmtDate,
 } from '../api';
+import { CAT_ICONS, getCatIcon } from '../constants/categoryIcons';
 
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-colors';
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1';
 
 // ─── Ícones por categoria ─────────────────────────────────────────────────────
-const CAT_ICONS = {
-  'Alimentação':          { icon: '🛒', bg: '#fef3cd' },
-  'Bares e Restaurantes': { icon: '🍔', bg: '#fff0e6' },
-  'Moradia':              { icon: '🏠', bg: '#fde8e8' },
-  'Transporte':           { icon: '🚗', bg: '#e8f4fd' },
-  'Saúde':                { icon: '💊', bg: '#fde8e8' },
-  'Educação':             { icon: '📚', bg: '#e8f4fd' },
-  'Lazer':                { icon: '🎬', bg: '#f3e8fd' },
-  'Viagem':               { icon: '✈️', bg: '#e8f4fd' },
-  'Compras':              { icon: '🛍️', bg: '#fef3cd' },
-  'Investimento':         { icon: '📈', bg: '#d5f5e3' },
-  'Família':              { icon: '👨‍👩‍👧', bg: '#fde8e8' },
-  'Telefone':             { icon: '📱', bg: '#eafaf1' },
-  'Salário':              { icon: '💰', bg: '#d5f5e3' },
-  'Receita':              { icon: '💰', bg: '#d5f5e3' },
-  'Outras Rendas':        { icon: '💵', bg: '#d5f5e3' },
-  'Contas':               { icon: '⚡', bg: '#e8f4fd' },
-  'Presentes':            { icon: '🎁', bg: '#fde8e8' },
-  'Trabalho':             { icon: '💼', bg: '#f0f0f0' },
-  'Despesas do Trabalho': { icon: '💼', bg: '#f0f0f0' },
-  'Outros':               { icon: '📦', bg: '#f0f0f0' },
-  'Saques':               { icon: '💸', bg: '#fef3cd' },
-  'Pagamentos Cartões':   { icon: '💳', bg: '#e8f4fd' },
-};
 function CatIcon({ category }) {
-  const cat = CAT_ICONS[category];
-  if (cat) return (
-    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0" style={{ background: cat.bg }}>{cat.icon}</div>
-  );
+  const cat = getCatIcon(category);
   return (
-    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-gray-100">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-        <rect x="3" y="3" width="18" height="18" rx="3"/>
-      </svg>
-    </div>
+    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0" style={{ background: cat.bg }}>{cat.icon}</div>
   );
 }
 
