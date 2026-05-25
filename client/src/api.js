@@ -29,9 +29,13 @@ api.interceptors.response.use(
 );
 
 // Auth
-export const login         = (data) => api.post('/auth/login', data);
-export const getMe         = ()     => api.get('/auth/me');
-export const updateProfile = (data) => api.put('/auth/profile', data);
+export const login          = (data) => api.post('/auth/login', data);
+export const getMe          = ()     => api.get('/auth/me');
+export const updateProfile  = (data) => api.put('/auth/profile', data);
+export const forgotPassword = (data) => api.post('/auth/forgot-password', data);
+export const resetPassword  = (data) => api.post('/auth/reset-password', data);
+export const firstAccess    = (data) => api.post('/auth/first-access', data);
+export const forgotUsername = (data) => api.post('/auth/forgot-username', data);
 
 // User management (admin only)
 export const getUsers    = ()     => api.get('/users');

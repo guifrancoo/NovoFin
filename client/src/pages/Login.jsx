@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { login } from '../api';
 
 export default function Login() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const [form, setForm]   = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -54,6 +55,12 @@ export default function Login() {
           <p className="text-sm text-gray-500 mt-1">Entre com suas credenciais</p>
         </div>
 
+        {location.state?.message && (
+          <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm mb-4">
+            {location.state.message}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-6 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
@@ -93,6 +100,20 @@ export default function Login() {
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
+
+          <hr className="border-gray-100" />
+
+          <div className="flex flex-col gap-2 text-center">
+            <Link to="/first-access" className="text-sm text-gray-500 hover:text-blue-600 transition-colors">
+              Primeiro acesso
+            </Link>
+            <Link to="/forgot-password" className="text-sm text-gray-500 hover:text-blue-600 transition-colors">
+              Esqueci minha senha
+            </Link>
+            <Link to="/forgot-username" className="text-sm text-gray-500 hover:text-blue-600 transition-colors">
+              Esqueci meu usuário
+            </Link>
+          </div>
         </form>
       </div>
     </div>

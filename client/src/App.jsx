@@ -13,6 +13,10 @@ import AdminUsers     from './pages/AdminUsers';
 import AdminErrors    from './pages/AdminErrors';
 import AdminDbHealth       from './pages/AdminDbHealth';
 import AdminSubscriptions  from './pages/AdminSubscriptions';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword  from './pages/ResetPassword';
+import FirstAccess    from './pages/FirstAccess';
+import ForgotUsername from './pages/ForgotUsername';
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem('token');
@@ -360,7 +364,11 @@ function Layout() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route path="/login"            element={<Login />} />
+      <Route path="/forgot-password"  element={<ForgotPassword />} />
+      <Route path="/reset-password"   element={<ResetPassword />} />
+      <Route path="/first-access"     element={<FirstAccess />} />
+      <Route path="/forgot-username"  element={<ForgotUsername />} />
 
       {/* Admin routes — completely separate from the user app */}
       <Route path="/admin/login" element={<AdminLogin />} />

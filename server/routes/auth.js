@@ -142,11 +142,11 @@ router.post('/reset-password', async (req, res) => {
   res.status(200).json({ ok: true });
 });
 
-// POST /api/auth/set-password  (first access — reuses reset_token as invite token)
-router.post('/set-password', async (req, res) => {
-  const { token, newPassword } = req.body;
-  if (!token || !newPassword)
-    return res.status(400).json({ error: 'token e newPassword são obrigatórios' });
+// POST /api/auth/first-access  (reuses reset_token as invite token)
+router.post('/first-access', async (req, res) => {
+  const { token, username, newPassword } = req.body;
+  if (!token || !username || !newPassword)
+    return res.status(400).json({ error: 'token, username e newPassword são obrigatórios' });
 
   const now  = new Date().toISOString();
   const user = db.prepare(
@@ -155,10 +155,32 @@ router.post('/set-password', async (req, res) => {
 
   if (!user) return res.status(400).json({ error: 'Convite inválido ou expirado' });
 
+  const conflict = db.prepare('SELECT 1 FROM users WHERE username = ? AND id != ?').get(username, user.id);
+  if (conflict) return res.status(400).json({ error: 'Este usuário já está em uso' });
+
   const hash = bcrypt.hashSync(newPassword, 10);
   db.prepare(
-    'UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL, must_change_password = 0 WHERE id = ?'
-  ).run(hash, user.id);
+    'UPDATE users SET password = ?, username = ?, reset_token = NULL, reset_token_expires = NULL, must_change_password = 0 WHERE id = ?'
+  ).run(hash, username, user.id);
+
+  res.status(200).json({ ok: true });
+});
+
+// POST /api/auth/forgot-username
+router.post('/forgot-username', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email é obrigatório' });
+
+  const user = db.prepare('SELECT username FROM users WHERE email = ?').get(email);
+
+  if (user) {
+    await resend.emails.send({
+      from:    'grão <graofin.contato@gmail.com>',
+      to:      email,
+      subject: 'Seu usuário no grão',
+      html:    `<p>Seu usuário de acesso ao grão é: <strong>${user.username}</strong></p>`,
+    });
+  }
 
   res.status(200).json({ ok: true });
 });
