@@ -254,15 +254,15 @@ export default function AdminUsers() {
                 {users.map(u => (
                   <tr key={u.id} className={`transition-colors ${String(u.id) === highlightId ? "bg-blue-50" : "hover:bg-gray-50/50"}`}>
                     <td className="px-5 py-3 font-medium text-gray-900 whitespace-nowrap">{u.name}</td>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.email ?? "—"}</td>
-                    <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.whatsapp ?? "—"}</td>
+                    <td className="px-4 py-3 text-gray-500" style={{maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={u.email ?? ""}>{u.email ?? "—"}</td>
+                    <td className="px-4 py-3 text-gray-500" style={{maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={u.whatsapp ?? ""}>{u.whatsapp ?? "—"}</td>
                     <td className="px-4 py-3"><PlanBadge plan={u.plan} /></td>
                     <td className="px-4 py-3"><StatusBadge pending={u.must_change_password} /></td>
                     <td className="px-4 py-3 text-right text-gray-700 tabular-nums">{u.transactionCount.toLocaleString("pt-BR")}</td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmt(u.lastActivity)}</td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{fmt(u.created_at)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => openEdit(u)}
                           className="text-xs text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 px-2 py-1 rounded-md transition-colors"
@@ -272,6 +272,7 @@ export default function AdminUsers() {
                         {u.must_change_password ? (
                           <button
                             onClick={() => quickAction(u, "invite")}
+                            title="Enviar convite"
                             className="text-xs text-green-700 hover:text-green-900 border border-green-200 hover:border-green-300 px-2 py-1 rounded-md transition-colors"
                           >
                             Convidar
@@ -279,21 +280,25 @@ export default function AdminUsers() {
                         ) : (
                           <button
                             onClick={() => quickAction(u, "reset-password")}
-                            className="text-xs text-blue-600 hover:text-blue-800 border border-blue-200 hover:border-blue-300 px-2 py-1 rounded-md transition-colors"
+                            title="Reset senha"
+                            className="text-gray-400 hover:text-blue-600 border border-gray-200 hover:border-blue-200 p-1 rounded-md transition-colors"
                           >
-                            Reset senha
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
                           </button>
                         )}
                         <button
                           onClick={() => navigate(`/admin/subscriptions?userId=${u.id}`)}
+                          title="Ver assinatura"
                           className="text-xs text-purple-600 hover:text-purple-800 border border-purple-200 hover:border-purple-300 px-2 py-1 rounded-md transition-colors whitespace-nowrap"
                         >
-                          Ver assinatura →
+                          Ass. →
                         </button>
                         <button
                           onClick={() => handleDelete(u)}
-                          className="text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-300 px-2 py-1 rounded-md transition-colors"
                           title="Excluir usuário"
+                          className="text-gray-400 hover:text-red-600 border border-gray-200 hover:border-red-200 p-1 rounded-md transition-colors"
                         >
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
