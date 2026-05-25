@@ -285,6 +285,7 @@ router.delete('/users/:id', requireAdmin, (req, res) => {
 
 // POST /api/admin/users/:id/invite — resend invite email
 router.post('/users/:id/invite', requireAdmin, async (req, res) => {
+  console.log('[invite] called for user id:', req.params.id);
   const { db } = require('../database');
   const userId = req.params.id;
 
