@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 
 const STATUS_STYLES = {
@@ -104,11 +104,12 @@ function PaymentForm({ userId, onSuccess }) {
   );
 }
 
-function UserAccordion({ user }) {
+function UserAccordion({ user, autoOpen, navigate }) {
   const [open, setOpen]         = useState(false);
   const [detail, setDetail]     = useState(null);
   const [loadingD, setLoadingD] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const rowRef = useRef(null);
 
   async function fetchDetail() {
     setLoadingD(true);
@@ -120,6 +121,14 @@ function UserAccordion({ user }) {
       if (res.ok) setDetail(await res.json());
     } finally { setLoadingD(false); }
   }
+
+  useEffect(() => {
+    if (autoOpen) {
+      fetchDetail();
+      setOpen(true);
+      setTimeout(() => rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+    }
+  }, [autoOpen]);
 
   function toggle() {
     if (!open && !detail) fetchDetail();
@@ -149,7 +158,8 @@ function UserAccordion({ user }) {
   return (
     <>
       <tr
-        className={`cursor-pointer hover:bg-gray-50/50 transition-colors ${open ? 'bg-gray-50/50' : ''}`}
+        ref={rowRef}
+        className={`cursor-pointer transition-colors ${open || autoOpen ? 'bg-blue-50/40' : 'hover:bg-gray-50/50'}`}
         onClick={toggle}
       >
         <td className="px-5 py-3 font-medium text-gray-900 whitespace-nowrap">
@@ -161,6 +171,7 @@ function UserAccordion({ user }) {
             {user.name}
           </div>
         </td>
+        <td className="px-4 py-3 text-gray-500 text-sm">{user.email ?? '—'}</td>
         <td className="px-4 py-3 text-gray-500 text-sm">{user.whatsapp ?? '—'}</td>
         <td className="px-4 py-3 text-sm">
           <span className="text-gray-600">{PLAN_LABELS[user.plan] ?? user.plan}</span>
@@ -170,11 +181,19 @@ function UserAccordion({ user }) {
         </td>
         <td className="px-4 py-3 text-gray-500 text-sm whitespace-nowrap">{fmt(user.expiresAt)}</td>
         <td className="px-4 py-3 text-gray-500 text-sm whitespace-nowrap">{fmt(user.lastPayment)}</td>
+        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+          <button
+            onClick={() => navigate(`/admin/users?userId=${user.id}`)}
+            className="text-xs text-purple-600 hover:text-purple-800 border border-purple-200 hover:border-purple-300 px-2 py-1 rounded-md transition-colors whitespace-nowrap"
+          >
+            Ver usuário →
+          </button>
+        </td>
       </tr>
 
       {open && (
         <tr>
-          <td colSpan={6} className="px-5 py-5 bg-gray-50/80 border-t border-gray-100">
+          <td colSpan={8} className="px-5 py-5 bg-gray-50/80 border-t border-gray-100">
             {loadingD && (
               <div className="text-xs text-gray-400 animate-pulse">Carregando...</div>
             )}
@@ -182,8 +201,9 @@ function UserAccordion({ user }) {
             {!loadingD && (
               <div className="space-y-5">
                 {/* Subscription details */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-xs">
                   {[
+                    ['E-mail', user.email ?? '—'],
                     ['Plano', PLAN_LABELS[sub?.plan] ?? (sub?.plan || '—')],
                     ['Status', STATUS_LABELS[sub?.status] ?? (sub?.status || '—')],
                     ['Início', fmt(sub?.started_at)],
@@ -257,6 +277,8 @@ function UserAccordion({ user }) {
 
 export default function AdminSubscriptions() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get('userId');
   const [users, setUsers]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -312,15 +334,24 @@ export default function AdminSubscriptions() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/60">
                   <th className="text-left text-xs font-medium text-gray-500 px-5 py-3">Nome</th>
+                  <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">E-mail</th>
                   <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">WhatsApp</th>
                   <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Plano</th>
                   <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Status</th>
                   <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Vencimento</th>
                   <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Último Pagamento</th>
+                  <th className="text-left text-xs font-medium text-gray-500 px-4 py-3">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {users.map(u => <UserAccordion key={u.id} user={u} />)}
+                {users.map(u => (
+                  <UserAccordion
+                    key={u.id}
+                    user={u}
+                    autoOpen={String(u.id) === highlightId}
+                    navigate={navigate}
+                  />
+                ))}
               </tbody>
             </table>
           </div>

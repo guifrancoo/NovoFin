@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import AdminLayout from "./AdminLayout";
 
 const PLAN_STYLES = {
@@ -60,6 +60,8 @@ const EMPTY_NEW = { email: "", whatsapp: "", plan: "free" };
 
 export default function AdminUsers() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const highlightId = searchParams.get("userId");
 
   const [users, setUsers]         = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -250,7 +252,7 @@ export default function AdminUsers() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {users.map(u => (
-                  <tr key={u.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={u.id} className={`transition-colors ${String(u.id) === highlightId ? "bg-blue-50" : "hover:bg-gray-50/50"}`}>
                     <td className="px-5 py-3 font-medium text-gray-900 whitespace-nowrap">{u.name}</td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.email ?? "—"}</td>
                     <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.whatsapp ?? "—"}</td>
@@ -282,6 +284,12 @@ export default function AdminUsers() {
                             Reset senha
                           </button>
                         )}
+                        <button
+                          onClick={() => navigate(`/admin/subscriptions?userId=${u.id}`)}
+                          className="text-xs text-purple-600 hover:text-purple-800 border border-purple-200 hover:border-purple-300 px-2 py-1 rounded-md transition-colors whitespace-nowrap"
+                        >
+                          Ver assinatura →
+                        </button>
                         <button
                           onClick={() => handleDelete(u)}
                           className="text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-300 px-2 py-1 rounded-md transition-colors"
