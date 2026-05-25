@@ -80,7 +80,17 @@
       "Bash(cp:*)",
       "Bash(npm install:*)",
       "Bash(node:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(curl:*)",
+      "Bash(grep -v \"^\\\\[db\\\\]\\\\|ExperimentalWarning\\\\|Use \\\\`node\")",
+      "Bash(grep -v \"^\\\\[db\\\\]\\\\|\\\\[parser\\\\]\\\\|ExperimentalWarning\\\\|Use \\\\`node\")",
+      "Bash(ls \"C:\\\\Users\\\\lherm\\\\OneDrive\\\\Desktop\\\\NovoFin\\\\server\\\\\"*.js 2>/dev/null && ls \"C:\\\\Users\\\\lherm\\\\OneDrive\\\\Desktop\\\\NovoFin\\\\\"*.js)",
+      "Bash(grep -n \"module.exports\\\\|exports\\\\.\" server/database/index.js)",
+      "Bash(grep -n \"module.exports\\\\|exports\\\\.\" server/database.js)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)"
     ]
   }
 }
