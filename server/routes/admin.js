@@ -1,8 +1,13 @@
-const { Router } = require('express');
-const path = require('path');
-const fs   = require('fs');
-const jwt  = require('jsonwebtoken');
+const { Router }  = require('express');
+const path        = require('path');
+const fs          = require('fs');
+const jwt         = require('jsonwebtoken');
+const crypto      = require('crypto');
+const bcrypt      = require('bcryptjs');
+const { Resend }  = require('resend');
 const { reopenDatabase, initDatabase, DB_PATH } = require('../database');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const router = Router();
 
@@ -87,6 +92,8 @@ router.get('/users', requireAdmin, (_req, res) => {
   try { db.exec('ALTER TABLE users ADD COLUMN whatsapp_number TEXT'); } catch (_) {}
   try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch (_) {}
 
+  try { db.exec('ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
+
   const users = db.prepare(`
     SELECT
       u.id,
@@ -94,8 +101,9 @@ router.get('/users', requireAdmin, (_req, res) => {
       COALESCE(u.email, u.username) AS email,
       u.plan,
       u.whatsapp_number,
+      u.must_change_password,
       u.created_at,
-      COUNT(e.id)  AS transactionCount,
+      COUNT(e.id)       AS transactionCount,
       MAX(e.created_at) AS lastActivity
     FROM users u
     LEFT JOIN expenses e ON e.user_id = u.id
@@ -104,15 +112,149 @@ router.get('/users', requireAdmin, (_req, res) => {
   `).all();
 
   res.json(users.map(u => ({
-    id:               u.id,
-    name:             u.name,
-    email:            u.email     || null,
-    plan:             u.plan      || 'free',
-    whatsapp:         u.whatsapp_number || null,
-    created_at:       u.created_at,
-    transactionCount: u.transactionCount,
-    lastActivity:     u.lastActivity || null,
+    id:                  u.id,
+    name:                u.name,
+    email:               u.email            || null,
+    plan:                u.plan             || 'free',
+    whatsapp:            u.whatsapp_number  || null,
+    must_change_password: u.must_change_password === 1,
+    created_at:          u.created_at,
+    transactionCount:    u.transactionCount,
+    lastActivity:        u.lastActivity     || null,
   })));
+});
+
+// POST /api/admin/users — create user and send invite email
+router.post('/users', requireAdmin, async (req, res) => {
+  const { db } = require('../database');
+  const { email, whatsapp, plan } = req.body;
+
+  if (!email) return res.status(400).json({ error: 'E-mail é obrigatório' });
+
+  const existing = db.prepare('SELECT 1 FROM users WHERE email = ?').get(email);
+  if (existing) return res.status(400).json({ error: 'E-mail já cadastrado' });
+
+  const tempPassword = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+  const token   = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+  const result = db.prepare(`
+    INSERT INTO users (username, password, email, whatsapp_number, plan, must_change_password, reset_token, reset_token_expires)
+    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+  `).run(email, tempPassword, email, whatsapp || null, plan || 'free', token, expires);
+
+  const link = `${process.env.APP_URL}/first-access?token=${token}`;
+  await resend.emails.send({
+    from:    'grão <onboarding@resend.dev>',
+    to:      email,
+    subject: 'Bem-vindo ao grão!',
+    html:    `<p>Você foi convidado para acessar o grão. Clique no link abaixo para definir seu usuário e senha:</p>
+              <p><a href="${link}">${link}</a></p>
+              <p>O link expira em 48 horas.</p>`,
+  });
+
+  res.status(201).json({ id: result.lastInsertRowid, email, plan: plan || 'free' });
+});
+
+// PATCH /api/admin/users/:id — edit user fields
+router.patch('/users/:id', requireAdmin, (req, res) => {
+  const { db } = require('../database');
+  const { username, email, whatsapp, plan } = req.body;
+  const userId = req.params.id;
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+  if (username && username !== user.username) {
+    const conflict = db.prepare('SELECT 1 FROM users WHERE username = ? AND id != ?').get(username, userId);
+    if (conflict) return res.status(400).json({ error: 'Nome de usuário já está em uso' });
+  }
+
+  if (email && email !== user.email) {
+    const conflict = db.prepare('SELECT 1 FROM users WHERE email = ? AND id != ?').get(email, userId);
+    if (conflict) return res.status(400).json({ error: 'E-mail já cadastrado' });
+  }
+
+  db.prepare(`
+    UPDATE users SET username = ?, email = ?, whatsapp_number = ?, plan = ? WHERE id = ?
+  `).run(
+    username ?? user.username,
+    email    ?? user.email,
+    whatsapp !== undefined ? (whatsapp || null) : user.whatsapp_number,
+    plan     ?? user.plan ?? 'free',
+    userId
+  );
+
+  const updated = db.prepare('SELECT id, username, email, whatsapp_number, plan, must_change_password, created_at FROM users WHERE id = ?').get(userId);
+  res.json({ ...updated, must_change_password: updated.must_change_password === 1 });
+});
+
+// DELETE /api/admin/users/:id — delete user and their expenses
+router.delete('/users/:id', requireAdmin, (req, res) => {
+  const { db } = require('../database');
+  const userId = req.params.id;
+
+  const user = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+  if (user.is_admin === 1) return res.status(400).json({ error: 'Não é possível excluir o usuário administrador' });
+
+  db.prepare('DELETE FROM expenses WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+
+  res.json({ ok: true });
+});
+
+// POST /api/admin/users/:id/invite — resend invite email
+router.post('/users/:id/invite', requireAdmin, async (req, res) => {
+  const { db } = require('../database');
+  const userId = req.params.id;
+
+  const user = db.prepare('SELECT id, email FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+  if (!user.email) return res.status(400).json({ error: 'Usuário não tem e-mail cadastrado' });
+
+  const token   = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+  db.prepare('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?').run(token, expires, userId);
+
+  const link = `${process.env.APP_URL}/first-access?token=${token}`;
+  await resend.emails.send({
+    from:    'grão <onboarding@resend.dev>',
+    to:      user.email,
+    subject: 'Bem-vindo ao grão!',
+    html:    `<p>Você foi convidado para acessar o grão. Clique no link abaixo para definir seu usuário e senha:</p>
+              <p><a href="${link}">${link}</a></p>
+              <p>O link expira em 48 horas.</p>`,
+  });
+
+  res.json({ ok: true });
+});
+
+// POST /api/admin/users/:id/reset-password — send password reset email
+router.post('/users/:id/reset-password', requireAdmin, async (req, res) => {
+  const { db } = require('../database');
+  const userId = req.params.id;
+
+  const user = db.prepare('SELECT id, email FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+  if (!user.email) return res.status(400).json({ error: 'Usuário não tem e-mail cadastrado' });
+
+  const token   = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+  db.prepare('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?').run(token, expires, userId);
+
+  const link = `${process.env.APP_URL}/reset-password?token=${token}`;
+  await resend.emails.send({
+    from:    'grão <graofin.contato@gmail.com>',
+    to:      user.email,
+    subject: 'Redefinir senha — grão',
+    html:    `<p>Clique no link abaixo para redefinir sua senha. O link expira em 1 hora.</p>
+              <p><a href="${link}">${link}</a></p>`,
+  });
+
+  res.json({ ok: true });
 });
 
 // PATCH /api/admin/users/:id/plan — update user plan
