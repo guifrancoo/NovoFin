@@ -9,6 +9,87 @@ const { reopenDatabase, initDatabase, DB_PATH } = require('../database');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const inviteEmailHtml = (inviteUrl) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:2rem 1rem;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+        <tr>
+          <td style="background:#111827;padding:2rem;text-align:center;">
+            <span style="font-size:28px;font-weight:500;color:#ffffff;letter-spacing:-0.5px;">gr<span style="color:#16a34a;">ã</span>o</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:2rem;">
+            <h2 style="font-size:20px;font-weight:500;color:#111827;margin:0 0 0.75rem;">Bem-vindo ao grão! 👋</h2>
+            <p style="font-size:14px;color:#6b7280;line-height:1.7;margin:0 0 1.5rem;">
+              Sua conta foi criada e está pronta para uso. Clique no botão abaixo para definir seu usuário e senha e começar a controlar suas finanças.
+            </p>
+            <div style="text-align:center;margin:1.5rem 0;">
+              <a href="${inviteUrl}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:500;">Ativar minha conta</a>
+            </div>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;font-size:12px;color:#9ca3af;line-height:1.6;margin-top:1.5rem;">
+              🔒 Este link é válido por <strong>48 horas</strong>. Após esse prazo, entre em contato com o suporte para receber um novo convite.<br><br>
+              Se você não solicitou este acesso, ignore este e-mail.
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="border-top:1px solid #f3f4f6;padding:1.25rem 2rem;text-align:center;font-size:12px;color:#9ca3af;">
+            grão — controle financeiro pessoal<br>
+            <a href="${process.env.APP_URL}" style="color:#16a34a;text-decoration:none;">${process.env.APP_URL}</a>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+`;
+
+const resetEmailHtml = (resetUrl) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:2rem 1rem;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+        <tr>
+          <td style="background:#111827;padding:2rem;text-align:center;">
+            <span style="font-size:28px;font-weight:500;color:#ffffff;letter-spacing:-0.5px;">gr<span style="color:#16a34a;">ã</span>o</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:2rem;">
+            <h2 style="font-size:20px;font-weight:500;color:#111827;margin:0 0 0.75rem;">Redefinir sua senha</h2>
+            <p style="font-size:14px;color:#6b7280;line-height:1.7;margin:0 0 1.5rem;">
+              Recebemos uma solicitação para redefinir a senha da sua conta no grão. Clique no botão abaixo para criar uma nova senha.
+            </p>
+            <div style="text-align:center;margin:1.5rem 0;">
+              <a href="${resetUrl}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:500;">Redefinir minha senha</a>
+            </div>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;font-size:12px;color:#9ca3af;line-height:1.6;margin-top:1.5rem;">
+              🔒 Este link é válido por <strong>1 hora</strong>. Se você não solicitou a redefinição, ignore este e-mail.
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="border-top:1px solid #f3f4f6;padding:1.25rem 2rem;text-align:center;font-size:12px;color:#9ca3af;">
+            grão — controle financeiro pessoal<br>
+            <a href="${process.env.APP_URL}" style="color:#16a34a;text-decoration:none;">${process.env.APP_URL}</a>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+`;
+
 const router = Router();
 
 // ── Admin JWT auth ────────────────────────────────────────────────────────────
@@ -148,9 +229,7 @@ router.post('/users', requireAdmin, async (req, res) => {
     from:    'grão <onboarding@resend.dev>',
     to:      email,
     subject: 'Bem-vindo ao grão!',
-    html:    `<p>Você foi convidado para acessar o grão. Clique no link abaixo para definir seu usuário e senha:</p>
-              <p><a href="${link}">${link}</a></p>
-              <p>O link expira em 48 horas.</p>`,
+    html:    inviteEmailHtml(link),
   });
 
   res.status(201).json({ id: result.lastInsertRowid, email, plan: plan || 'free' });
@@ -223,9 +302,7 @@ router.post('/users/:id/invite', requireAdmin, async (req, res) => {
     from:    'grão <onboarding@resend.dev>',
     to:      user.email,
     subject: 'Bem-vindo ao grão!',
-    html:    `<p>Você foi convidado para acessar o grão. Clique no link abaixo para definir seu usuário e senha:</p>
-              <p><a href="${link}">${link}</a></p>
-              <p>O link expira em 48 horas.</p>`,
+    html:    inviteEmailHtml(link),
   });
 
   res.json({ ok: true });
@@ -250,8 +327,7 @@ router.post('/users/:id/reset-password', requireAdmin, async (req, res) => {
     from:    'grão <graofin.contato@gmail.com>',
     to:      user.email,
     subject: 'Redefinir senha — grão',
-    html:    `<p>Clique no link abaixo para redefinir sua senha. O link expira em 1 hora.</p>
-              <p><a href="${link}">${link}</a></p>`,
+    html:    resetEmailHtml(link),
   });
 
   res.json({ ok: true });

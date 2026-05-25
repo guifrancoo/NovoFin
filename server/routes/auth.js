@@ -8,7 +8,71 @@ const requireAuth  = require('../middleware/auth');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const resetEmailHtml = (resetUrl) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:2rem 1rem;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+        <tr>
+          <td style="background:#111827;padding:2rem;text-align:center;">
+            <span style="font-size:28px;font-weight:500;color:#ffffff;letter-spacing:-0.5px;">gr<span style="color:#16a34a;">ã</span>o</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:2rem;">
+            <h2 style="font-size:20px;font-weight:500;color:#111827;margin:0 0 0.75rem;">Redefinir sua senha</h2>
+            <p style="font-size:14px;color:#6b7280;line-height:1.7;margin:0 0 1.5rem;">
+              Recebemos uma solicitação para redefinir a senha da sua conta no grão. Clique no botão abaixo para criar uma nova senha.
+            </p>
+            <div style="text-align:center;margin:1.5rem 0;">
+              <a href="${resetUrl}" style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:500;">Redefinir minha senha</a>
+            </div>
+            <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;font-size:12px;color:#9ca3af;line-height:1.6;margin-top:1.5rem;">
+              🔒 Este link é válido por <strong>1 hora</strong>. Se você não solicitou a redefinição, ignore este e-mail.
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="border-top:1px solid #f3f4f6;padding:1.25rem 2rem;text-align:center;font-size:12px;color:#9ca3af;">
+            grão — controle financeiro pessoal<br>
+            <a href="${process.env.APP_URL}" style="color:#16a34a;text-decoration:none;">${process.env.APP_URL}</a>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+`;
+
 const router = Router();
+
+const DEFAULT_CATEGORIES = [
+  { name: 'Alimentação',      is_income: 0 },
+  { name: 'Transporte',       is_income: 0 },
+  { name: 'Moradia',          is_income: 0 },
+  { name: 'Saúde',            is_income: 0 },
+  { name: 'Lazer',            is_income: 0 },
+  { name: 'Compras',          is_income: 0 },
+  { name: 'Educação',         is_income: 0 },
+  { name: 'Contas',           is_income: 0 },
+  { name: 'Cuidados Pessoais',is_income: 0 },
+  { name: 'Salário',          is_income: 1 },
+  { name: 'Freelance',        is_income: 1 },
+  { name: 'Outros',           is_income: 1 },
+];
+
+function seedDefaultCategories(userId) {
+  const stmt = db.prepare(
+    'INSERT OR IGNORE INTO categories (name, is_income, user_id) VALUES (?, ?, ?)'
+  );
+  for (const { name, is_income } of DEFAULT_CATEGORIES) {
+    stmt.run(name, is_income, userId);
+  }
+}
 
 // POST /api/auth/login
 router.post('/login', (req, res) => {
@@ -114,8 +178,7 @@ router.post('/forgot-password', async (req, res) => {
     from:    'grão <graofin.contato@gmail.com>',
     to:      email,
     subject: 'Redefinir senha — grão',
-    html:    `<p>Clique no link abaixo para redefinir sua senha. O link expira em 1 hora.</p>
-              <p><a href="${link}">${link}</a></p>`,
+    html:    resetEmailHtml(link),
   });
 
   res.status(200).json({ ok: true });
@@ -162,6 +225,8 @@ router.post('/first-access', async (req, res) => {
   db.prepare(
     'UPDATE users SET password = ?, username = ?, reset_token = NULL, reset_token_expires = NULL, must_change_password = 0 WHERE id = ?'
   ).run(hash, username, user.id);
+
+  seedDefaultCategories(user.id);
 
   res.status(200).json({ ok: true });
 });
