@@ -9,3 +9,5 @@ client/dist/
 server/.env
 server/financeiro-export.db
 server/data-export.json
+server/data-railway.json
+download-db.js

@@ -186,6 +186,11 @@ function initDatabase() {
 
   // Migrate: add is_admin column to users (safe, idempotent)
   try { db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch (_) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN reset_token TEXT'); } catch (_) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN reset_token_expires TEXT'); } catch (_) {}
 
   // --- Seed default admin user (once) ---
   const existingAdmin = db.prepare('SELECT 1 FROM users WHERE username = ?').get('admin');

@@ -1,8 +1,12 @@
 const { Router }   = require('express');
 const bcrypt       = require('bcryptjs');
 const jwt          = require('jsonwebtoken');
+const crypto       = require('crypto');
+const { Resend }   = require('resend');
 const { db }       = require('../database');
 const requireAuth  = require('../middleware/auth');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const router = Router();
 
@@ -88,6 +92,75 @@ router.put('/profile', requireAuth, (req, res) => {
   );
 
   res.json({ token, username: updatedUsername, is_admin: isAdmin });
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email é obrigatório' });
+
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (!user) return res.status(200).json({ ok: true });
+
+  const token   = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+  db.prepare('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?')
+    .run(token, expires, user.id);
+
+  const link = `${process.env.APP_URL}/reset-password?token=${token}`;
+
+  await resend.emails.send({
+    from:    'grão <graofin.contato@gmail.com>',
+    to:      email,
+    subject: 'Redefinir senha — grão',
+    html:    `<p>Clique no link abaixo para redefinir sua senha. O link expira em 1 hora.</p>
+              <p><a href="${link}">${link}</a></p>`,
+  });
+
+  res.status(200).json({ ok: true });
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword)
+    return res.status(400).json({ error: 'token e newPassword são obrigatórios' });
+
+  const now  = new Date().toISOString();
+  const user = db.prepare(
+    'SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > ?'
+  ).get(token, now);
+
+  if (!user) return res.status(400).json({ error: 'Token inválido ou expirado' });
+
+  const hash = bcrypt.hashSync(newPassword, 10);
+  db.prepare(
+    'UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL, must_change_password = 0 WHERE id = ?'
+  ).run(hash, user.id);
+
+  res.status(200).json({ ok: true });
+});
+
+// POST /api/auth/set-password  (first access — reuses reset_token as invite token)
+router.post('/set-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword)
+    return res.status(400).json({ error: 'token e newPassword são obrigatórios' });
+
+  const now  = new Date().toISOString();
+  const user = db.prepare(
+    'SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > ?'
+  ).get(token, now);
+
+  if (!user) return res.status(400).json({ error: 'Convite inválido ou expirado' });
+
+  const hash = bcrypt.hashSync(newPassword, 10);
+  db.prepare(
+    'UPDATE users SET password = ?, reset_token = NULL, reset_token_expires = NULL, must_change_password = 0 WHERE id = ?'
+  ).run(hash, user.id);
+
+  res.status(200).json({ ok: true });
 });
 
 module.exports = router;
