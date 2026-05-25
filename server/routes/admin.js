@@ -298,12 +298,17 @@ router.post('/users/:id/invite', requireAdmin, async (req, res) => {
   db.prepare('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?').run(token, expires, userId);
 
   const link = `${process.env.APP_URL}/first-access?token=${token}`;
-  await resend.emails.send({
-    from:    'grão <onboarding@resend.dev>',
-    to:      user.email,
-    subject: 'Bem-vindo ao grão!',
-    html:    inviteEmailHtml(link),
-  });
+  try {
+    const result = await resend.emails.send({
+      from:    'grão <onboarding@resend.dev>',
+      to:      user.email,
+      subject: 'Bem-vindo ao grão!',
+      html:    inviteEmailHtml(link),
+    });
+    console.log('[resend] invite result:', JSON.stringify(result));
+  } catch (err) {
+    console.error('[resend] invite error:', err.message, err);
+  }
 
   res.json({ ok: true });
 });
