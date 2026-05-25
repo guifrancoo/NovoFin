@@ -113,9 +113,12 @@ function initDatabase() {
 
     CREATE TABLE IF NOT EXISTS categories (
       id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-      name                 TEXT NOT NULL UNIQUE,
+      name                 TEXT NOT NULL,
       exclude_from_reports INTEGER NOT NULL DEFAULT 0,
-      created_at           TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+      created_at           TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+      is_income            INTEGER NOT NULL DEFAULT 0,
+      user_id              INTEGER DEFAULT NULL,
+      UNIQUE(name, user_id)
     );
 
     CREATE TABLE IF NOT EXISTS subcategories (
@@ -219,6 +222,34 @@ function initDatabase() {
 
   // Migrate: add user_id to categories — NULL means global/visible to all users (safe, idempotent)
   try { db.exec('ALTER TABLE categories ADD COLUMN user_id INTEGER DEFAULT NULL'); } catch (_) {}
+
+  // Migrate: change categories UNIQUE(name) → UNIQUE(name, user_id) so different users can share category names
+  // Idempotent: checks sqlite_master for the old inline UNIQUE on name; skips if already migrated
+  {
+    const catSql = db.prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'categories'"
+    ).get();
+    if (catSql && catSql.sql.includes('name TEXT NOT NULL UNIQUE')) {
+      db.exec(`
+        DROP TABLE IF EXISTS categories_new;
+        CREATE TABLE categories_new (
+          id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+          name                 TEXT NOT NULL,
+          exclude_from_reports INTEGER NOT NULL DEFAULT 0,
+          created_at           TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          is_income            INTEGER NOT NULL DEFAULT 0,
+          user_id              INTEGER DEFAULT NULL,
+          UNIQUE(name, user_id)
+        );
+        INSERT INTO categories_new (id, name, exclude_from_reports, created_at, is_income, user_id)
+        SELECT id, name, exclude_from_reports, created_at, is_income, user_id FROM categories;
+        DROP TABLE categories;
+        ALTER TABLE categories_new RENAME TO categories;
+      `);
+      console.log('[db] migrated categories: UNIQUE(name) → UNIQUE(name, user_id)');
+    }
+  }
+
   // Migrate: add user_id to payment_methods — NULL means global/visible to all users (safe, idempotent)
   try { db.exec('ALTER TABLE payment_methods ADD COLUMN user_id INTEGER DEFAULT NULL'); } catch (_) {}
 
