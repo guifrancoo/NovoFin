@@ -226,7 +226,7 @@ router.post('/users', requireAdmin, async (req, res) => {
 
   const link = `${process.env.APP_URL}/first-access?token=${token}`;
   await resend.emails.send({
-    from:    'grão <onboarding@resend.dev>',
+    from:    'grão <contato@graofin.com.br>',
     to:      email,
     subject: 'Bem-vindo ao grão!',
     html:    inviteEmailHtml(link),
@@ -301,7 +301,7 @@ router.post('/users/:id/invite', requireAdmin, async (req, res) => {
   const link = `${process.env.APP_URL}/first-access?token=${token}`;
   try {
     const result = await resend.emails.send({
-      from:    'grão <onboarding@resend.dev>',
+      from:    'grão <contato@graofin.com.br>',
       to:      user.email,
       subject: 'Bem-vindo ao grão!',
       html:    inviteEmailHtml(link),
