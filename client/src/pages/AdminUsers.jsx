@@ -165,7 +165,11 @@ export default function AdminUsers() {
       const res = await adminFetch(`/api/admin/users/${editUser.id}/${action}`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) setEditError(data.error || "Erro");
-      else setEditSuccess(action === "invite" ? "Convite enviado!" : "E-mail de reset enviado!");
+      else setEditSuccess(
+        action === "invite"            ? "Convite enviado!" :
+        action === "seed-categories"   ? "Categorias criadas!" :
+                                         "E-mail de reset enviado!"
+      );
     } catch {
       setEditError("Erro de conexão");
     } finally {
@@ -421,6 +425,13 @@ export default function AdminUsers() {
                 onClick={() => handleAction("reset-password")}
                 className="flex-1 text-xs text-blue-600 border border-blue-200 hover:bg-blue-50 disabled:opacity-50 py-2 rounded-lg transition-colors">
                 {actionLoading === "reset-password" ? "Enviando..." : "Enviar reset de senha"}
+              </button>
+            </div>
+            <div className="pt-1">
+              <button type="button" disabled={!!actionLoading}
+                onClick={() => handleAction("seed-categories")}
+                className="w-full text-xs text-orange-600 border border-orange-200 hover:bg-orange-50 disabled:opacity-50 py-2 rounded-lg transition-colors">
+                {actionLoading === "seed-categories" ? "Criando..." : "Seed categorias"}
               </button>
             </div>
 

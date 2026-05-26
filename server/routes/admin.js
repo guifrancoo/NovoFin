@@ -6,6 +6,7 @@ const crypto      = require('crypto');
 const bcrypt      = require('bcryptjs');
 const { Resend }  = require('resend');
 const { reopenDatabase, initDatabase, DB_PATH } = require('../database');
+const { seedDefaultCategories } = require('../utils/seedCategories');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -311,6 +312,18 @@ router.post('/users/:id/invite', requireAdmin, async (req, res) => {
     console.error('[resend] invite error:', err.message, err);
   }
 
+  res.json({ ok: true });
+});
+
+// POST /api/admin/users/:id/seed-categories — seed default categories for a user
+router.post('/users/:id/seed-categories', requireAdmin, (req, res) => {
+  const { db } = require('../database');
+  const userId = parseInt(req.params.id, 10);
+
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+  seedDefaultCategories(userId);
   res.json({ ok: true });
 });
 
