@@ -207,8 +207,9 @@ router.post('/reset-password', async (req, res) => {
 
 // POST /api/auth/first-access  (reuses reset_token as invite token)
 router.post('/first-access', async (req, res) => {
-  const { token, username, newPassword } = req.body;
-  if (!token || !username || !newPassword)
+  const { token, username, newPassword, password } = req.body;
+  const pwd = newPassword || password;
+  if (!token || !username || !pwd)
     return res.status(400).json({ error: 'token, username e newPassword são obrigatórios' });
 
   const now  = new Date().toISOString();
@@ -221,7 +222,7 @@ router.post('/first-access', async (req, res) => {
   const conflict = db.prepare('SELECT 1 FROM users WHERE username = ? AND id != ?').get(username, user.id);
   if (conflict) return res.status(400).json({ error: 'Este usuário já está em uso' });
 
-  const hash = bcrypt.hashSync(newPassword, 10);
+  const hash = bcrypt.hashSync(pwd, 10);
   db.prepare(
     'UPDATE users SET password = ?, username = ?, reset_token = NULL, reset_token_expires = NULL, must_change_password = 0 WHERE id = ?'
   ).run(hash, username, user.id);
