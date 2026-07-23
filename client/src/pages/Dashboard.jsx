@@ -156,6 +156,8 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
     total_amount:       String(Math.abs(expense.total_amount)),
     installment_amount: String(Math.abs(expense.installment_amount)),
     installments:       String(expense.installments || 1),
+    is_international:   expense.is_international === 1,
+    recorrente:         expense.recorrente === 1,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
@@ -168,6 +170,8 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
   const handleSave = async () => {
     setError(''); setSaving(true);
     try {
+      const intl = !isIncome && form.is_international ? 1 : 0;
+      const recr = !isIncome && form.recorrente ? 1 : 0;
       if (installmentsChanged) {
         await deleteGroup(expense.group_id);
         await createExpense({
@@ -180,17 +184,20 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
           total_amount:     Math.abs(parseFloat(form.total_amount)),
           installments:     newInstallments,
           type:             isIncome ? 'receita' : 'despesa',
-          is_international: expense.is_international || 0,
+          is_international: intl,
+          recorrente:       recr,
         });
       } else if (isGroup) {
         await updateGroup(expense.group_id, {
-          purchase_date:  form.purchase_date,
-          category:       form.category,
-          subcategory:    form.subcategory || null,
-          location:       form.location || null,
-          payment_method: form.payment_method,
-          description:    form.description || null,
-          total_amount:   isIncome ? Math.abs(parseFloat(form.total_amount)) : -Math.abs(parseFloat(form.total_amount)),
+          purchase_date:    form.purchase_date,
+          category:         form.category,
+          subcategory:      form.subcategory || null,
+          location:         form.location || null,
+          payment_method:   form.payment_method,
+          description:      form.description || null,
+          total_amount:     isIncome ? Math.abs(parseFloat(form.total_amount)) : -Math.abs(parseFloat(form.total_amount)),
+          is_international: intl,
+          recorrente:       recr,
         });
       } else {
         await updateExpense(expense.id, {
@@ -201,6 +208,8 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
           payment_method:     form.payment_method,
           description:        form.description || null,
           installment_amount: isIncome ? Math.abs(parseFloat(form.installment_amount)) : -Math.abs(parseFloat(form.installment_amount)),
+          is_international:   intl,
+          recorrente:         recr,
         });
       }
       onSave();
@@ -270,6 +279,22 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
               {methods.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
             </select>
           </div>
+          {!isIncome && (
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={form.is_international}
+                  onChange={(e) => setForm((f) => ({ ...f, is_international: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 accent-navy" />
+                <span className="text-sm text-gray-700">Compra internacional</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={form.recorrente}
+                  onChange={(e) => setForm((f) => ({ ...f, recorrente: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 accent-navy" />
+                <span className="text-sm text-gray-700">Compra recorrente</span>
+              </label>
+            </div>
+          )}
           <div>
             <label className={labelCls}>Descrição</label>
             <input type="text" value={form.description} onChange={set('description')} placeholder="Observações..." className={inputCls} />
