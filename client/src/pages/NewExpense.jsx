@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   createExpense, getPaymentMethods, getCategories, getSubcategories, fmtCurrency,
 } from '../api';
+import RecorrenteToggle from '../components/RecorrenteToggle';
 
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-colors';
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1.5';
@@ -236,32 +237,12 @@ export default function NewExpense() {
                   </button>
                   <span className="text-sm text-gray-600">🌍 Compra internacional</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 py-1">
-                  <button type="button"
-                    onClick={() => setForm((f) => ({ ...f, recorrente: !f.recorrente }))}
-                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-                      form.recorrente ? 'bg-blue-500' : 'bg-gray-200'
-                    }`}>
-                    <span className="inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform"
-                      style={{ transform: form.recorrente ? 'translateX(18px)' : 'translateX(2px)' }} />
-                  </button>
-                  <span className="text-sm text-gray-600">
-                    🔁 Recorrente
-                    <span className="text-xs text-gray-400 ml-1">cobrada todo mês</span>
-                  </span>
-                  {form.recorrente && (
-                    <div className="flex items-center gap-1.5 w-full sm:w-auto mt-1 sm:mt-0">
-                      <label className="text-xs text-gray-500 whitespace-nowrap">Repetir por</label>
-                      <input
-                        type="number" min="1" max="36"
-                        value={form.meses_recorrencia}
-                        onChange={set('meses_recorrencia')}
-                        className="w-16 border border-gray-200 rounded-lg px-2 py-1 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 text-center"
-                      />
-                      <label className="text-xs text-gray-500 whitespace-nowrap">meses</label>
-                    </div>
-                  )}
-                </div>
+                <RecorrenteToggle
+                  value={form.recorrente}
+                  onChange={(v) => setForm((f) => ({ ...f, recorrente: v }))}
+                  meses={form.meses_recorrencia}
+                  onMesesChange={(v) => setForm((f) => ({ ...f, meses_recorrencia: v }))}
+                />
               </div>
             )}
 

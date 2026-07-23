@@ -8,6 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { CAT_ICONS, getCatIcon } from '../constants/categoryIcons';
+import RecorrenteToggle from '../components/RecorrenteToggle';
 
 const CAT_COLORS = [
   '#3498db','#e67e22','#9b59b6','#1abc9c','#e74c3c',
@@ -158,6 +159,7 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
     installments:       String(expense.installments || 1),
     is_international:   expense.is_international === 1,
     recorrente:         expense.recorrente === 1,
+    meses_recorrencia:  String(expense.recurring_months || 1),
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
@@ -170,22 +172,24 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
   const handleSave = async () => {
     setError(''); setSaving(true);
     try {
-      const intl = !isIncome && form.is_international ? 1 : 0;
-      const recr = !isIncome && form.recorrente ? 1 : 0;
+      const intl   = !isIncome && form.is_international ? 1 : 0;
+      const recr   = !isIncome && form.recorrente ? 1 : 0;
+      const mesesR = recr ? (parseInt(form.meses_recorrencia, 10) || 1) : 1;
       if (installmentsChanged) {
         await deleteGroup(expense.group_id);
         await createExpense({
-          purchase_date:    form.purchase_date,
-          category:         form.category,
-          subcategory:      form.subcategory || null,
-          location:         form.location || null,
-          payment_method:   form.payment_method,
-          description:      form.description || null,
-          total_amount:     Math.abs(parseFloat(form.total_amount)),
-          installments:     newInstallments,
-          type:             isIncome ? 'receita' : 'despesa',
-          is_international: intl,
-          recorrente:       recr,
+          purchase_date:     form.purchase_date,
+          category:          form.category,
+          subcategory:       form.subcategory || null,
+          location:          form.location || null,
+          payment_method:    form.payment_method,
+          description:       form.description || null,
+          total_amount:      Math.abs(parseFloat(form.total_amount)),
+          installments:      newInstallments,
+          type:              isIncome ? 'receita' : 'despesa',
+          is_international:  intl,
+          recorrente:        recr,
+          meses_recorrencia: mesesR,
         });
       } else if (isGroup) {
         await updateGroup(expense.group_id, {
@@ -198,6 +202,7 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
           total_amount:     isIncome ? Math.abs(parseFloat(form.total_amount)) : -Math.abs(parseFloat(form.total_amount)),
           is_international: intl,
           recorrente:       recr,
+          recurring_months: mesesR,
         });
       } else {
         await updateExpense(expense.id, {
@@ -210,6 +215,7 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
           installment_amount: isIncome ? Math.abs(parseFloat(form.installment_amount)) : -Math.abs(parseFloat(form.installment_amount)),
           is_international:   intl,
           recorrente:         recr,
+          recurring_months:   mesesR,
         });
       }
       onSave();
@@ -280,19 +286,19 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
             </select>
           </div>
           {!isIncome && (
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div className="flex flex-col gap-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none py-1">
                 <input type="checkbox" checked={form.is_international}
                   onChange={(e) => setForm((f) => ({ ...f, is_international: e.target.checked }))}
                   className="w-4 h-4 rounded border-gray-300 accent-navy" />
                 <span className="text-sm text-gray-700">🌍 Compra internacional</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input type="checkbox" checked={form.recorrente}
-                  onChange={(e) => setForm((f) => ({ ...f, recorrente: e.target.checked }))}
-                  className="w-4 h-4 rounded border-gray-300 accent-navy" />
-                <span className="text-sm text-gray-700">🔁 Compra recorrente</span>
-              </label>
+              <RecorrenteToggle
+                value={form.recorrente}
+                onChange={(v) => setForm((f) => ({ ...f, recorrente: v }))}
+                meses={form.meses_recorrencia}
+                onMesesChange={(v) => setForm((f) => ({ ...f, meses_recorrencia: v }))}
+              />
             </div>
           )}
           <div>

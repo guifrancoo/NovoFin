@@ -93,18 +93,20 @@ router.post('/', (req, res) => {
   const intl = is_international ? 1 : 0;
   const recr = recorrente ? 1 : 0;
 
+  const numMesesVal = recr ? Math.min(36, Math.max(1, parseInt(meses_recorrencia, 10) || 1)) : 1;
+
   const insert = db.prepare(`
     INSERT INTO expenses
       (group_id, purchase_date, due_date, category, subcategory, location, payment_method,
-       description, total_amount, installments, installment_number, installment_amount, user_id, is_international, recorrente)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       description, total_amount, installments, installment_number, installment_amount, user_id, is_international, recorrente, recurring_months)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   for (let i = 0; i < numInstallments; i++) {
     insert.run(
       group_id, purchase_date, addMonths(firstDueDate, i),
       category, subcategory || null, location || null, payment_method, description || null,
-      finalAmount, numInstallments, i + 1, installmentAmount, req.user.id, intl, recr
+      finalAmount, numInstallments, i + 1, installmentAmount, req.user.id, intl, recr, numMesesVal
     );
   }
 
@@ -112,22 +114,21 @@ router.post('/', (req, res) => {
     'SELECT * FROM expenses WHERE group_id = ? ORDER BY installment_number'
   ).all(group_id);
 
-  // Recurring: create (meses_recorrencia - 1) additional independent records
-  const numMeses = recr ? Math.min(36, Math.max(1, parseInt(meses_recorrencia, 10) || 1)) : 1;
-  if (recr && numMeses > 1) {
+  // Recurring: create (numMesesVal - 1) additional independent records
+  if (recr && numMesesVal > 1) {
     const recurInsert = db.prepare(`
       INSERT INTO expenses
         (group_id, purchase_date, due_date, category, subcategory, location, payment_method,
-         description, total_amount, installments, installment_number, installment_amount, user_id, is_international, recorrente)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, 1)
+         description, total_amount, installments, installment_number, installment_amount, user_id, is_international, recorrente, recurring_months)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, 1, ?)
     `);
-    for (let m = 1; m < numMeses; m++) {
+    for (let m = 1; m < numMesesVal; m++) {
       const recurPurchaseDate = addMonths(purchase_date, m);
       const recurDueDate      = computeFirstDueDate(recurPurchaseDate, payment_method);
       recurInsert.run(
         randomUUID(), recurPurchaseDate, recurDueDate,
         category, subcategory || null, location || null, payment_method, description || null,
-        finalAmount, finalAmount, req.user.id, intl
+        finalAmount, finalAmount, req.user.id, intl, numMesesVal
       );
     }
   }
@@ -155,6 +156,7 @@ router.patch('/group/:group_id', (req, res) => {
     total_amount:     req.body.total_amount != null ? parseFloat(req.body.total_amount) : first.total_amount,
     is_international: req.body.is_international !== undefined ? (req.body.is_international ? 1 : 0) : (first.is_international ?? 0),
     recorrente:       req.body.recorrente       !== undefined ? (req.body.recorrente       ? 1 : 0) : (first.recorrente       ?? 0),
+    recurring_months: req.body.recurring_months != null ? (parseInt(req.body.recurring_months, 10) || 1) : (first.recurring_months ?? 1),
   };
 
   const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ? AND (user_id = ? OR user_id IS NULL)').get(merged.category, req.user.id);
@@ -169,7 +171,7 @@ router.patch('/group/:group_id', (req, res) => {
   const update = db.prepare(`
     UPDATE expenses
     SET purchase_date = ?, due_date = ?, category = ?, subcategory = ?, location = ?,
-        payment_method = ?, description = ?, total_amount = ?, installment_amount = ?, is_international = ?, recorrente = ?
+        payment_method = ?, description = ?, total_amount = ?, installment_amount = ?, is_international = ?, recorrente = ?, recurring_months = ?
     WHERE id = ?
   `);
 
@@ -186,6 +188,7 @@ router.patch('/group/:group_id', (req, res) => {
       installmentAmount,
       merged.is_international,
       merged.recorrente,
+      merged.recurring_months,
       rows[i].id
     );
   }
@@ -237,6 +240,7 @@ router.patch('/:id', (req, res) => {
     installment_amount: req.body.installment_amount != null ? parseFloat(req.body.installment_amount) : existing.installment_amount,
     is_international:   req.body.is_international !== undefined ? (req.body.is_international ? 1 : 0) : (existing.is_international ?? 0),
     recorrente:         req.body.recorrente       !== undefined ? (req.body.recorrente       ? 1 : 0) : (existing.recorrente       ?? 0),
+    recurring_months:   req.body.recurring_months != null ? (parseInt(req.body.recurring_months, 10) || 1) : (existing.recurring_months ?? 1),
   };
 
   const validCat = db.prepare('SELECT 1 FROM categories WHERE name = ? AND (user_id = ? OR user_id IS NULL)').get(merged.category, req.user.id);
@@ -255,12 +259,12 @@ router.patch('/:id', (req, res) => {
   db.prepare(`
     UPDATE expenses
     SET purchase_date = ?, due_date = ?, category = ?, subcategory = ?, location = ?,
-        payment_method = ?, description = ?, installment_amount = ?, total_amount = ?, is_international = ?, recorrente = ?
+        payment_method = ?, description = ?, installment_amount = ?, total_amount = ?, is_international = ?, recorrente = ?, recurring_months = ?
     WHERE id = ?
   `).run(
     merged.purchase_date, newDueDate, merged.category, merged.subcategory, merged.location,
     merged.payment_method, merged.description, merged.installment_amount, newTotalAmount, merged.is_international,
-    merged.recorrente, req.params.id
+    merged.recorrente, merged.recurring_months, req.params.id
   );
 
   res.json(db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id));

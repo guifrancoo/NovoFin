@@ -220,6 +220,9 @@ function initDatabase() {
   // Migrate: add recorrente column to expenses (safe, idempotent)
   try { db.exec('ALTER TABLE expenses ADD COLUMN recorrente INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
 
+  // Migrate: add recurring_months column to expenses (safe, idempotent)
+  try { db.exec('ALTER TABLE expenses ADD COLUMN recurring_months INTEGER NOT NULL DEFAULT 1'); } catch (_) {}
+
   // Migrate: add user_id to categories — NULL means global/visible to all users (safe, idempotent)
   try { db.exec('ALTER TABLE categories ADD COLUMN user_id INTEGER DEFAULT NULL'); } catch (_) {}
 
