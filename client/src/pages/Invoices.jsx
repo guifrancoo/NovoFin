@@ -5,6 +5,7 @@ import {
   checkExpense, fmtCurrency, fmtDate,
 } from '../api';
 import { CAT_ICONS, getCatIcon } from '../constants/categoryIcons';
+import RecorrenteToggle from '../components/RecorrenteToggle';
 
 const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-navy/20 focus:border-navy/40 transition-colors';
 const labelCls = 'block text-xs font-medium text-gray-500 mb-1';
@@ -41,6 +42,9 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
     total_amount:       String(Math.abs(expense.total_amount)),
     installment_amount: String(Math.abs(expense.installment_amount)),
     installments:       String(expense.installments || 1),
+    is_international:   expense.is_international === 1,
+    recorrente:         expense.recorrente === 1,
+    meses_recorrencia:  String(expense.recurring_months || 1),
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
@@ -53,29 +57,37 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
   const handleSave = async () => {
     setError(''); setSaving(true);
     try {
+      const intl   = !isIncome && form.is_international ? 1 : 0;
+      const recr   = !isIncome && form.recorrente ? 1 : 0;
+      const mesesR = recr ? (parseInt(form.meses_recorrencia, 10) || 1) : 1;
       if (installmentsChanged) {
         await deleteGroup(expense.group_id);
         await createExpense({
+          purchase_date:     form.purchase_date,
+          category:          form.category,
+          subcategory:       form.subcategory || null,
+          location:          form.location || null,
+          payment_method:    form.payment_method,
+          description:       form.description || null,
+          total_amount:      Math.abs(parseFloat(form.total_amount)),
+          installments:      newInstallments,
+          type:              isIncome ? 'receita' : 'despesa',
+          is_international:  intl,
+          recorrente:        recr,
+          meses_recorrencia: mesesR,
+        });
+      } else if (isGroup) {
+        await updateGroup(expense.group_id, {
           purchase_date:    form.purchase_date,
           category:         form.category,
           subcategory:      form.subcategory || null,
           location:         form.location || null,
           payment_method:   form.payment_method,
           description:      form.description || null,
-          total_amount:     Math.abs(parseFloat(form.total_amount)),
-          installments:     newInstallments,
-          type:             isIncome ? 'receita' : 'despesa',
-          is_international: expense.is_international || 0,
-        });
-      } else if (isGroup) {
-        await updateGroup(expense.group_id, {
-          purchase_date:  form.purchase_date,
-          category:       form.category,
-          subcategory:    form.subcategory || null,
-          location:       form.location || null,
-          payment_method: form.payment_method,
-          description:    form.description || null,
-          total_amount:   isIncome ? Math.abs(parseFloat(form.total_amount)) : -Math.abs(parseFloat(form.total_amount)),
+          total_amount:     isIncome ? Math.abs(parseFloat(form.total_amount)) : -Math.abs(parseFloat(form.total_amount)),
+          is_international: intl,
+          recorrente:       recr,
+          recurring_months: mesesR,
         });
       } else {
         await updateExpense(expense.id, {
@@ -86,6 +98,9 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
           payment_method:     form.payment_method,
           description:        form.description || null,
           installment_amount: isIncome ? Math.abs(parseFloat(form.installment_amount)) : -Math.abs(parseFloat(form.installment_amount)),
+          is_international:   intl,
+          recorrente:         recr,
+          recurring_months:   mesesR,
         });
       }
       onSave();
@@ -151,6 +166,22 @@ function EditModal({ expense, methods, categories, onSave, onClose }) {
               {methods.map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
             </select>
           </div>
+          {!isIncome && (
+            <div className="flex flex-col gap-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none py-1">
+                <input type="checkbox" checked={form.is_international}
+                  onChange={(e) => setForm((f) => ({ ...f, is_international: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 accent-navy" />
+                <span className="text-sm text-gray-700">🌍 Compra internacional</span>
+              </label>
+              <RecorrenteToggle
+                value={form.recorrente}
+                onChange={(v) => setForm((f) => ({ ...f, recorrente: v }))}
+                meses={form.meses_recorrencia}
+                onMesesChange={(v) => setForm((f) => ({ ...f, meses_recorrencia: v }))}
+              />
+            </div>
+          )}
           <div>
             <label className={labelCls}>Descrição</label>
             <input type="text" value={form.description} onChange={set('description')} placeholder="Observações..." className={inputCls} />
