@@ -382,6 +382,7 @@ export default function Dashboard() {
   const [methods, setMethods]     = useState([]);
   const [categories, setCats]     = useState([]);
   const [catFilter, setCatFilter] = useState('');
+  const [textFilter, setTextFilter] = useState('');
   const [editingExpense, setEditingExpense] = useState(null);
   const [deleteTarget, setDeleteTarget]     = useState(null);
   const [expandedCats, setExpandedCats]     = useState(new Set());
@@ -428,7 +429,17 @@ export default function Dashboard() {
   };
 
   const allExpenses = data?.recent_expenses ?? [];
-  const filteredExpenses = catFilter ? allExpenses.filter((e) => e.category === catFilter) : allExpenses;
+  const normalize = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const filteredExpenses = allExpenses.filter((e) => {
+    if (catFilter && e.category !== catFilter) return false;
+    if (textFilter) {
+      const q = normalize(textFilter);
+      return normalize(e.description).includes(q)
+        || normalize(e.category).includes(q)
+        || normalize(e.subcategory).includes(q);
+    }
+    return true;
+  });
 
   const atMin = false;
   const atMax = false;
@@ -545,6 +556,13 @@ export default function Dashboard() {
                 {isRange ? 'Lançamentos do período' : 'Lançamentos do mês'}
               </span>
               <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={textFilter}
+                  onChange={(e) => setTextFilter(e.target.value)}
+                  placeholder="Buscar lançamento..."
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 placeholder-gray-400 focus:outline-none focus:border-gray-300 w-40"
+                />
                 <select value={catFilter} onChange={(e) => setCatFilter(e.target.value)}
                   className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-600 focus:outline-none">
                   <option value="">Todas as categorias</option>
@@ -556,7 +574,7 @@ export default function Dashboard() {
             <div className="overflow-y-auto max-h-[520px] md:max-h-[460px]">
               {filteredExpenses.length === 0 ? (
                 <div className="p-8 text-center text-sm text-gray-400">
-                  {catFilter ? `Nenhum lançamento em "${catFilter}".` : 'Nenhum lançamento neste período.'}
+                  {(catFilter || textFilter) ? 'Nenhum lançamento encontrado para os filtros aplicados.' : 'Nenhum lançamento neste período.'}
                 </div>
               ) : (
                 <>
