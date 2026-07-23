@@ -285,13 +285,13 @@ function EditModal({ expense, methods, categories, onSave, onClose, onDelete }) 
                 <input type="checkbox" checked={form.is_international}
                   onChange={(e) => setForm((f) => ({ ...f, is_international: e.target.checked }))}
                   className="w-4 h-4 rounded border-gray-300 accent-navy" />
-                <span className="text-sm text-gray-700">Compra internacional</span>
+                <span className="text-sm text-gray-700">🌍 Compra internacional</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input type="checkbox" checked={form.recorrente}
                   onChange={(e) => setForm((f) => ({ ...f, recorrente: e.target.checked }))}
                   className="w-4 h-4 rounded border-gray-300 accent-navy" />
-                <span className="text-sm text-gray-700">Compra recorrente</span>
+                <span className="text-sm text-gray-700">🔁 Compra recorrente</span>
               </label>
             </div>
           )}
