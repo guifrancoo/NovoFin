@@ -429,14 +429,42 @@ export default function Dashboard() {
   };
 
   const allExpenses = data?.recent_expenses ?? [];
-  const normalize = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+  const norm = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+  const levenshtein = (a, b) => {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, (_, i) => Array(n + 1).fill(0).map((__, j) => j === 0 ? i : 0));
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++)
+      for (let j = 1; j <= n; j++)
+        dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    return dp[m][n];
+  };
+
+  const fuzzyMatch = (query, field) => {
+    const q = norm(query);
+    const t = norm(field);
+    if (!q) return true;
+    if (t.includes(q)) return true;
+    const qWords = q.split(/[\s.,\-_/]+/).filter(Boolean);
+    const tWords = t.split(/[\s.,\-_/]+/).filter(Boolean);
+    return qWords.every((qw) =>
+      tWords.some((tw) => {
+        const maxLen = Math.max(qw.length, tw.length);
+        return maxLen > 0 && (1 - levenshtein(qw, tw) / maxLen) >= 0.7;
+      })
+    );
+  };
+
   const filteredExpenses = allExpenses.filter((e) => {
     if (catFilter && e.category !== catFilter) return false;
     if (textFilter) {
-      const q = normalize(textFilter);
-      return normalize(e.description).includes(q)
-        || normalize(e.category).includes(q)
-        || normalize(e.subcategory).includes(q);
+      return fuzzyMatch(textFilter, e.location)
+        || fuzzyMatch(textFilter, e.description)
+        || fuzzyMatch(textFilter, e.category)
+        || fuzzyMatch(textFilter, e.subcategory);
     }
     return true;
   });
