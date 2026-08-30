@@ -204,6 +204,7 @@ export default function Invoices() {
   const [data, setData]                     = useState(null);
   const [loading, setLoading]               = useState(false);
   const [expanded, setExpanded]             = useState({});
+  const [collapsedCards, setCollapsedCards] = useState({});
   const [selectedYear, setSelectedYear]     = useState(String(new Date().getFullYear()));
   const [editingExpense, setEditingExpense] = useState(null);
   const [methods, setMethods]               = useState([]);
@@ -233,6 +234,7 @@ export default function Invoices() {
   }, []);
 
   const toggle = (key) => setExpanded((p) => ({ ...p, [key]: !p[key] }));
+  const toggleCard = (method) => setCollapsedCards((p) => ({ ...p, [method]: !p[method] }));
   const handleSaved = () => { setEditingExpense(null); loadInvoices(); };
 
   const handleCheck = async (expenseId, current) => {
@@ -306,14 +308,21 @@ export default function Invoices() {
 
         const yearTotal = filteredMonths.reduce((s, [, info]) => s + info.total, 0);
         const colors = cardColor(method);
+        const isCardCollapsed = !!collapsedCards[method];
 
         return (
           <div key={method} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
 
             {/* Header do cartão */}
-            <div className="flex items-center justify-between px-5 py-4"
-              style={{ background: colors.bg }}>
+            <div className="flex items-center justify-between px-5 py-4 cursor-pointer select-none"
+              style={{ background: colors.bg }}
+              onClick={() => toggleCard(method)}>
               <div className="flex items-center gap-3">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="rgba(255,255,255,0.9)" strokeWidth="2"
+                  className={`transition-transform shrink-0 ${isCardCollapsed ? '-rotate-90' : ''}`}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
                 <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="2">
                     <rect x="2" y="5" width="20" height="14" rx="2"/>
@@ -332,6 +341,7 @@ export default function Invoices() {
             </div>
 
             {/* Linhas de mês */}
+            {!isCardCollapsed && (
             <div className="divide-y divide-gray-50">
               {filteredMonths.map(([month, info]) => {
                 const key = `${method}-${month}`;
@@ -503,6 +513,7 @@ export default function Invoices() {
                 );
               })}
             </div>
+            )}
           </div>
         );
       })}
